@@ -3,9 +3,11 @@ services:
     image: emqx/emqx:5.8.6      
     container_name: emqx
     restart: unless-stopped     
+    
     ports:
-      - "1883:1883"             
-      - "18083:18083"           
+      - "1883:1883"
+      - "8083:8083"             # MQTT sobre WebSocket (clientes en el navegador)
+      - "18083:18083"      
     volumes:
       - emqx-data:/opt/emqx/data   
 
