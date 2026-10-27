@@ -1,0 +1,17 @@
+services:
+  emqx:
+    image: emqx/emqx:5.8.6
+    container_name: emqx
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "1883:1883"
+      - "8083:8083"
+      - "18083:18083"
+    volumes:
+      - emqx-data:/opt/emqx/data
+      - ./config/emqx.conf:/opt/emqx/etc/emqx.conf:ro
+      - ./secrets:/opt/emqx/etc/secrets:ro
+
+volumes:
+  emqx-data:
