@@ -1,0 +1,10 @@
+CREATE TABLE mqtt_user (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  username VARCHAR(100) NOT NULL,
+  password_hash VARCHAR(100) NOT NULL,
+  salt VARCHAR(40) NOT NULL,
+  is_superuser TINYINT(1) NOT NULL DEFAULT 0,
+  created DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY mqtt_username (username)
+);
