@@ -1,1 +1,17 @@
-.env
+# PlatformIO                                                                      
+.pio/                                                                             
+.pioenvs/                                                                         
+.piolibdeps/                                                                      
+                                                                                    
+# IDEs                                                                            
+.vscode/                                                                          
+.idea/                                                                            
+*.swp                                                                             
+*.DS_Store                                                                        
+                                                                                    
+# Python (para la parte de software)                                              
+__pycache__/                                                                      
+*.py[cod]                                                                         
+venv/                                                                             
+.env/
+*.log
