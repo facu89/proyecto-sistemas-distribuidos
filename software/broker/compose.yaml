@@ -1,0 +1,39 @@
+services:
+  emqx:
+    image: emqx/emqx:5.8.6
+    container_name: emqx
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "1883:1883"
+      - "8883:8883"   # Puerto TLS seguro
+      - "8083:8083"
+      - "18083:18083"
+    volumes:
+      - emqx-data:/opt/emqx/data
+      - ./config/emqx.conf:/opt/emqx/etc/emqx.conf:ro
+      - ./security/certs:/opt/emqx/etc/certs:ro  # Certificados SSL/TLS mapeados
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.4
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: mqtt
+      MYSQL_USER: emqx
+      MYSQL_PASSWORD: ${MYSQL_EMQX_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      retries: 20
+
+volumes:
+  emqx-data:
+  mysql-data:
