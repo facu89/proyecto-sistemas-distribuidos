@@ -15,3 +15,5 @@ __pycache__/
 venv/                                                                             
 .env/
 *.log
+# Configuración local del firmware (claves de WiFi y MQTT)
+firmware/include/config.h

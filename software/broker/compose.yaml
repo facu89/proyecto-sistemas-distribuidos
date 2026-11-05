@@ -10,7 +10,7 @@ services:
       - "18083:18083"
     volumes:
       - emqx-data:/opt/emqx/data
-      - ./config/emqx.conf:/opt/emqx/etc/emqx.conf:ro
+      - ./config/emqx.conf:/opt/emqx/etc/emqx.conf:ro,z
     depends_on:
       mysql:
         condition: service_healthy
@@ -26,7 +26,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_EMQX_PASSWORD}
     volumes:
       - mysql-data:/var/lib/mysql
-      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro,z
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 5s

@@ -3,7 +3,7 @@
 Todos los tópicos van en minúscula (MQTT distingue mayúsculas: `Actuador` y `actuador` son tópicos distintos).
 Lo que está entre llaves `{}` es una parte variable del tópico; el resto es fijo.
 
-- `{nodoId}` identifica al nodo. Hay un solo ESP32 por bancal, así que el nodo es el bancal junto con su ESP32. Es **un solo nivel** del tópico. Ejemplo: `bancal1`.
+- `{nodoId}` identifica al nodo. Hay un solo ESP32 por bancal, así que el nodo es el bancal junto con su ESP32. Es **un solo nivel** del tópico. Ejemplo: `bancal1esp1`.
 - `{tipo}` es el nombre del componente (`riego`, `luz`, `temperatura`, `humedad`...). Es un solo nivel, así que hay un solo componente de cada tipo por nodo. Ejemplo: `riego`.
 
 Participantes:
@@ -38,7 +38,7 @@ Filtros de suscripción de cada participante:
 
 `{nodoId}/actuador/{tipo}/cmd`
 
-Ejemplo: `bancal1/actuador/riego/cmd`, con payload `on` u `off`.
+Ejemplo: `bancal1esp1/actuador/riego/cmd`, con payload `on` u `off`.
 
 - **Publica:** solo el servicio, cuando decide activar o desactivar algo.
 - **Se suscribe el ESP32:** solo a los actuadores de su nodo, con `{nodoId}/actuador/+/cmd`. Ver "Comando en `/cmd`" en las decisiones de diseño.
@@ -50,7 +50,7 @@ Ejemplo: `bancal1/actuador/riego/cmd`, con payload `on` u `off`.
 
 `{nodoId}/actuador/{tipo}/estado`
 
-Ejemplo: `bancal1/actuador/riego/estado`, con payload `on` u `off`.
+Ejemplo: `bancal1esp1/actuador/riego/estado`, con payload `on` u `off`.
 
 - **Publica:** el ESP32, después de ejecutar una orden, con el estado real del actuador. Sirve para saber si el actuador realmente se encendió o si hubo un error (por ejemplo, falló el relé).
 - **Se suscriben:** el usuario y el servicio, con `+/actuador/+/estado`.
@@ -61,7 +61,7 @@ Ejemplo: `bancal1/actuador/riego/estado`, con payload `on` u `off`.
 
 `{nodoId}/sensor/{tipo}`
 
-Ejemplo: `bancal1/sensor/humedad`, con payload `41.2`.
+Ejemplo: `bancal1esp1/sensor/humedad`, con payload `41.2`.
 
 - **Publica:** el ESP32, cada vez que lee un sensor.
 - **Se suscriben:** el servicio (para decidir cuándo actuar y cuándo generar una alerta) y el usuario (para mostrar los datos), con `+/sensor/+`.
@@ -72,9 +72,10 @@ Ejemplo: `bancal1/sensor/humedad`, con payload `41.2`.
 
 `{nodoId}/presencia`
 
-Ejemplo: `bancal1/presencia`, con payload `online` u `offline`.
+Ejemplo: `bancal1esp1/presencia`, con payload `online` u `offline`.
 
 - **Publica:** el ESP32 publica `online` al conectarse. Al conectarse, también deja registrado en el broker un **Last Will** (`offline`): si el ESP32 se corta sin avisar (se apaga, pierde WiFi), el broker lo detecta por el keepalive y publica `offline` en su nombre.
+- **Keepalive de 10 s:** el ESP32 manda un PING cada ~5 s (la mitad del keepalive). Si el broker no recibe nada durante 1,5 × 10 = 15 s, da al ESP32 por muerto y publica el Last Will. Por cómo el broker revisa los plazos, en la práctica el `offline` puede tardar algunos segundos más.
 - **Se suscriben:** el usuario y el servicio, con `+/presencia`.
 - **QoS 1:** es importante saber si el nodo está activo, así que no se puede perder. Si el mensaje se repite (por ejemplo, `offline` dos veces) no pasa nada.
 - **Retain sí:** quien se conecta después ve enseguida si cada nodo está activo o no.

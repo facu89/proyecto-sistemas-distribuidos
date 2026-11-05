@@ -8,7 +8,7 @@
 
 namespace {
 
-constexpr unsigned long INTERVALO_MS = 2000;  // el DHT11 no admite más de una lectura por segundo
+constexpr unsigned long INTERVALO_MS = 5000;  // una medición (y una publicación) cada 5 s; el DHT11 admite como mínimo 1 s
 constexpr unsigned long CONVERSION_MS = 750;  // conversión de la DS18B20 a 12 bits
 
 OneWire oneWire(PIN_DS18B20);
