@@ -60,7 +60,7 @@ void pantallaIniciar() {
   display.display();
 }
 
-// Cinco filas de 13 px: nodoId y antigüedad, las tres lecturas, y la última orden con el estado de la red.
+// Cinco filas de 13 px: nodoId y antigüedad, suelo, aire y luz, y la última orden con el estado de la red.
 void pantallaMostrar(const Lecturas &lecturas, EstadoRed red, const Orden &orden) {
   display.clear();
 
@@ -74,9 +74,12 @@ void pantallaMostrar(const Lecturas &lecturas, EstadoRed red, const Orden &orden
   }
 
   if (lecturas.hayDatos) {
-    fila(13, "Suelo", formatear(lecturas.temperaturaSuelo, 1, " °C"));
-    fila(26, "Aire", formatear(lecturas.temperaturaAire, 1, " °C"));
-    fila(39, "Humedad", formatear(lecturas.humedadAire, 0, " %"));
+    // Temperatura y humedad de cada medio en la misma fila.
+    fila(13, "Suelo", formatear(lecturas.temperaturaSuelo, 1, " °C") + "   " +
+                          formatear(lecturas.humedadSuelo, 0, " %"));
+    fila(26, "Aire", formatear(lecturas.temperaturaAire, 1, " °C") + "   " +
+                         formatear(lecturas.humedadAire, 0, " %"));
+    fila(39, "Luz", lecturas.hayLuz ? "sí" : "no");
   } else {
     display.setTextAlignment(TEXT_ALIGN_LEFT);
     display.drawString(0, 26, "Leyendo...");

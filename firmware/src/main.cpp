@@ -13,8 +13,9 @@ Orden orden;
 unsigned long ultimoRefresco = 0;
 
 void imprimir(const Lecturas &l) {
-  Serial.printf("suelo=%.1f C  aire=%.1f C  humedad=%.0f %%\n",
-                l.temperaturaSuelo, l.temperaturaAire, l.humedadAire);
+  Serial.printf("suelo=%.1f C %.0f %% (crudo %d)  aire=%.1f C %.0f %%  luz=%d\n",
+                l.temperaturaSuelo, l.humedadSuelo, l.humedadSueloCruda,
+                l.temperaturaAire, l.humedadAire, l.hayLuz);
 }
 
 }  // namespace

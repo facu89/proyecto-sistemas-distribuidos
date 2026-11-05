@@ -214,4 +214,6 @@ void redPublicarLecturas(const Lecturas &lecturas) {
   publicar("temperatura_suelo", lecturas.temperaturaSuelo, 1);
   publicar("temperatura_aire", lecturas.temperaturaAire, 1);
   publicar("humedad_aire", lecturas.humedadAire, 0);
+  publicar("humedad_suelo", lecturas.humedadSuelo, 0);
+  publicar("luz", lecturas.hayLuz ? 1 : 0, 0);  // digital: "1" con luz, "0" a oscuras
 }

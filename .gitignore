@@ -13,7 +13,11 @@
 __pycache__/                                                                      
 *.py[cod]                                                                         
 venv/                                                                             
-.env/
+.env
 *.log
 # Configuración local del firmware (claves de WiFi y MQTT)
 firmware/include/config.h
+
+# Secretos del broker (claves y usuarios reales). En git solo va secrets.example/
+software/broker/secrets/
+!software/broker/secrets.example/.env
