@@ -1,10 +1,8 @@
 CREATE DATABASE IF NOT EXISTS mqtt;
 USE mqtt;
 
--- Crear usuario para EMQX y otorgarle privilegios
-CREATE USER IF NOT EXISTS 'emqx'@'%' IDENTIFIED BY 'admin123';
-GRANT ALL PRIVILEGES ON mqtt.* TO 'emqx'@'%';
-FLUSH PRIVILEGES;
+-- El usuario 'emqx' y sus permisos sobre la base 'mqtt' los crea la imagen de MySQL
+-- a partir de MYSQL_USER / MYSQL_PASSWORD (ver compose.yaml y .env).
 
 -- Tabla de usuarios
 CREATE TABLE IF NOT EXISTS mqtt_user (
@@ -31,5 +29,5 @@ VALUES ('bancal1', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc
 
 INSERT INTO mqtt_acl (username, permission, action, topic) VALUES ('bancal1', 'allow', 'publish', 'bancal1/sensor/+');
 INSERT INTO mqtt_acl (username, permission, action, topic) VALUES ('bancal1', 'allow', 'publish', 'bancal1/actuador/+/estado');
-INSERT INTO mqtt_acl, (username, permission, action, topic) VALUES ('bancal1', 'allow', 'publish', 'bancal1/presencia');
+INSERT INTO mqtt_acl (username, permission, action, topic) VALUES ('bancal1', 'allow', 'publish', 'bancal1/presencia');
 INSERT INTO mqtt_acl (username, permission, action, topic) VALUES ('bancal1', 'allow', 'subscribe', 'bancal1/actuador/+/cmd');

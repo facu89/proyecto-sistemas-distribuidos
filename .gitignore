@@ -13,5 +13,14 @@
 __pycache__/                                                                      
 *.py[cod]                                                                         
 venv/                                                                             
-.env/
 *.log
+
+# Secretos (usar .env.example como plantilla)
+.env
+!.env.example
+
+# Claves privadas y archivos de la CA (se generan localmente)
+software/broker/security/certs/*.key
+software/broker/security/certs/key.pem
+software/broker/security/certs/*.csr
+software/broker/security/certs/*.srl
