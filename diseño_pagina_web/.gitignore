@@ -1,0 +1,5 @@
+# Copias de respaldo que crea Blender al guardar
+*.blend1
+
+# Modelo sin comprimir, solo para comparar (generar_escena.py --sin-compresion)
+modelos/home.sin-compresion.glb

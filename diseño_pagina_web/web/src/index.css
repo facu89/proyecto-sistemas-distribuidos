@@ -1,0 +1,65 @@
+:root {
+  /* Fondo tipo "estudio": arena cálida, apagada arriba y más clara en el piso
+     para que la sombra de la maceta y la regadera se lea */
+  --fondo-arriba: #8a7a6a;
+  --fondo-medio: #a08e7a;
+  --fondo-piso: #c4b29b;
+
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #2f2a25;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: linear-gradient(
+    to bottom,
+    var(--fondo-arriba) 0%,
+    var(--fondo-medio) 58%,
+    var(--fondo-piso) 100%
+  );
+  overflow: hidden;
+}
+
+.home {
+  position: fixed;
+  inset: 0;
+}
+
+/* Velo detrás del canvas: oscurece los bordes y deja un resplandor cálido arriba,
+   donde está la lámpara. Aparece al ritmo del estudio 3D (~1 s). */
+.ambiente {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 70% 60% at 50% 22%,
+    rgb(255 196 120 / 0.16) 0%,
+    rgb(60 40 25 / 0.28) 55%,
+    rgb(30 20 12 / 0.5) 100%
+  );
+  opacity: 0;
+  transition: opacity 1s ease;
+  pointer-events: none;
+}
+
+.ambiente[data-lampara='true'] {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambiente {
+    transition-duration: 0.2s;
+  }
+}

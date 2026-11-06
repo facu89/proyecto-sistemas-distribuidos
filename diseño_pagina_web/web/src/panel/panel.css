@@ -1,0 +1,259 @@
+.actuadores {
+  --panel-fondo: rgb(250 246 240 / 0.9);
+  --panel-borde: rgb(255 255 255 / 0.6);
+  --panel-texto: #2f2a25;
+  --panel-tenue: #7a6f64;
+  --panel-sombra: 0 18px 40px -12px rgb(45 32 20 / 0.45), 0 2px 6px rgb(45 32 20 / 0.12);
+  --interruptor-apagado: #d8cfc4;
+  --foco: #2f6fd6;
+
+  /* Color de cada actuador cuando está encendido */
+  --color-luz: #e3962b;
+  --color-ventilador: #6f8fae;
+  --color-riego: #3d6fd1;
+
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  color: var(--panel-texto);
+}
+
+/* ---------- botón que despliega ---------- */
+
+.actuadores-boton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px 0 14px;
+  border: 1px solid var(--panel-borde);
+  border-radius: 999px;
+  background: var(--panel-fondo);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--panel-sombra);
+  color: inherit;
+  font: 600 15px/1 inherit;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.actuadores-boton:hover {
+  transform: translateY(-1px);
+}
+
+.actuadores-boton:active {
+  transform: translateY(0);
+}
+
+.actuadores-contador {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--panel-texto);
+  color: #fff;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- panel ---------- */
+
+.actuadores-panel {
+  width: 300px;
+  padding: 14px 14px 12px;
+  border: 1px solid var(--panel-borde);
+  border-radius: 20px;
+  background: var(--panel-fondo);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--panel-sombra);
+  transform-origin: top right;
+  transition:
+    opacity 0.18s ease,
+    transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2),
+    visibility 0s linear 0.22s;
+}
+
+.actuadores-panel[data-abierto='false'] {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.96);
+  visibility: hidden;
+}
+
+.actuadores-panel[data-abierto='true'] {
+  transition-delay: 0s;
+}
+
+.actuadores-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 6px 4px;
+}
+
+.actuadores-cabecera h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--panel-tenue);
+}
+
+.actuadores-cerrar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--panel-tenue);
+  cursor: pointer;
+}
+
+.actuadores-cerrar svg {
+  width: 18px;
+  height: 18px;
+}
+
+.actuadores-cerrar:hover {
+  background: rgb(0 0 0 / 0.06);
+  color: var(--panel-texto);
+}
+
+.actuadores-lista {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.actuador {
+  --color: var(--panel-tenue);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.actuador[data-actuador='luz'] { --color-encendido: var(--color-luz); }
+.actuador[data-actuador='ventilador'] { --color-encendido: var(--color-ventilador); }
+.actuador[data-actuador='riego'] { --color-encendido: var(--color-riego); }
+
+.actuador[data-encendido='true'] {
+  --color: var(--color-encendido);
+  background: color-mix(in srgb, var(--color-encendido) 10%, transparent);
+}
+
+.actuador-icono {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color) 14%, white);
+  color: var(--color);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.actuador-texto {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+}
+
+.actuador-nombre {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.actuador-estado {
+  font-size: 13px;
+  color: var(--panel-tenue);
+}
+
+.actuador[data-encendido='true'] .actuador-estado {
+  color: color-mix(in srgb, var(--color-encendido) 75%, black);
+}
+
+/* ---------- interruptor ---------- */
+
+.interruptor {
+  position: relative;
+  flex: none;
+  width: 48px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--interruptor-apagado);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.interruptor[aria-checked='true'] {
+  background: var(--color-encendido);
+}
+
+.interruptor-perilla {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  transition: transform 0.22s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+.interruptor[aria-checked='true'] .interruptor-perilla {
+  transform: translateX(20px);
+}
+
+.actuadores-nota {
+  margin: 10px 4px 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--panel-tenue);
+}
+
+/* ---------- foco visible con teclado ---------- */
+
+.actuadores :focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+/* ---------- celular: el panel ocupa el ancho de la pantalla ---------- */
+
+@media (max-width: 480px) {
+  .actuadores {
+    left: 16px;
+  }
+
+  .actuadores-panel {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .actuadores-boton,
+  .actuadores-panel,
+  .interruptor,
+  .interruptor-perilla {
+    transition: none;
+  }
+}

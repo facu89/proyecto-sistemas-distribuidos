@@ -1,0 +1,68 @@
+.cargando {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  transition:
+    opacity 0.5s ease,
+    visibility 0s linear 0s;
+}
+
+.cargando[data-listo='true'] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.5s ease 0.15s,
+    visibility 0s linear 0.65s;
+}
+
+.cargando-caja {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+
+.cargando-texto {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: rgb(255 250 242 / 0.9);
+}
+
+.cargando-barra {
+  width: 160px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 250 242 / 0.25);
+}
+
+.cargando-relleno {
+  width: 40%;
+  height: 100%;
+  border-radius: inherit;
+  background: #fffaf2;
+  animation: cargando-va-y-viene 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes cargando-va-y-viene {
+  from {
+    transform: translateX(-10%);
+  }
+  to {
+    transform: translateX(160%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cargando,
+  .cargando[data-listo='true'],
+  .cargando-relleno {
+    transition: none;
+    animation: none;
+    width: 100%;
+    opacity: 0.6;
+  }
+}
