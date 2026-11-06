@@ -1,0 +1,23 @@
+{
+  "name": "servicio",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Servicio central: aplica las reglas de los actuadores por MQTT (TLS) y le pasa el estado a la web por SSE",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node --env-file=../broker/secrets/.env --env-file-if-exists=.env src/main.ts",
+    "dev": "node --watch --env-file=../broker/secrets/.env --env-file-if-exists=.env src/main.ts",
+    "test": "node --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "mqtt": "^5.16.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "~7.0.2"
+  }
+}
