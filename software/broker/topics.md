@@ -9,8 +9,10 @@ Lo que está entre llaves `{}` es una parte variable del tópico; el resto es fi
 Participantes:
 
 - **ESP32:** lee los sensores y maneja los actuadores de su nodo.
-- **Servicio:** recibe las lecturas, decide cuándo actuar y genera las alertas.
-- **Usuario:** la interfaz que ve una persona (dashboard). Solo lee.
+- **Servicio** ([`software/servicio`](../servicio/README.md)): recibe las lecturas, decide cuándo actuar y genera las alertas.
+- **Usuario:** la interfaz que ve una persona (la web, [`diseño_pagina_web/web`](../../diseño_pagina_web/web/README.md)). Solo lee. **No se conecta al broker:** recibe del servicio, por HTTP con Server-Sent Events (`/api/eventos`), lo mismo que le llega por estos tópicos. Ver "La web recibe los datos a través del servicio" en las decisiones de diseño.
+
+Todos se conectan al broker por TLS (puerto 8883), verificando el certificado del broker con la CA del proyecto (ver [`README.md`](README.md)).
 
 ## Resumen
 
@@ -28,7 +30,9 @@ Filtros de suscripción de cada participante:
 |---|---|
 | ESP32 | `{nodoId}/actuador/+/cmd` (solo los de su propio nodo) |
 | Servicio | `+/sensor/+`, `+/actuador/+/estado`, `+/presencia` |
-| Usuario | `+/sensor/+`, `+/actuador/+/cmd`, `+/actuador/+/estado`, `+/presencia`, `alertas/#` |
+| Usuario | Ninguno: no se conecta al broker. El servicio le pasa las lecturas, las órdenes que dio, el estado de los actuadores y la presencia. Las alertas se van a pasar igual cuando existan. |
+
+La tabla de resumen dice "Usuario" en *Se suscriben* porque recibe esos datos, aunque le lleguen a través del servicio. En la ACL quedó el usuario MQTT `cliente_web`, de solo lectura, por si más adelante se quiere un cliente que lea directo del broker (por ejemplo, para depurar).
 
 `+` reemplaza exactamente un nivel ("cualquier nodo", "cualquier tipo") y `#` reemplaza todos los niveles que siguen.
 
@@ -98,6 +102,12 @@ Ejemplo: `bancal1esp1/presencia`, con payload `online` u `offline`.
 - **`{nodoId}` de un solo nivel, igual al usuario MQTT del ESP32:** cada ESP32 se autentica en el broker con su `{nodoId}` como usuario. Así la ACL se escribe con una única regla genérica para todos los nodos ("cada ESP32 solo publica y lee tópicos que empiezan con su propio `{nodoId}`"), sin cargar una regla por equipo, y ningún ESP32 puede publicar datos en nombre de otro nodo.
 - **Comando en `/cmd` y estado en `/estado`:** el comando y el estado de un actuador son dos subtópicos hermanos, al mismo nivel (`.../riego/cmd` y `.../riego/estado`). Si el comando fuera el propio `.../riego` y el estado un subtópico suyo, el ESP32 tendría que suscribirse con un filtro exacto de un nivel (`{nodoId}/actuador/+`) y cuidarse de no usar nunca `#`, porque recibiría sus propios mensajes de `/estado` como si fueran órdenes y podría entrar en un bucle (publica `on` como estado, lo lee como orden, lo vuelve a ejecutar). Con `/cmd` el ESP32 se suscribe solo a lo que termina en `cmd`, no hay forma de confundir una cosa con la otra, y la ACL queda simple: el ESP32 lee `.../cmd` y publica `.../estado`; el servicio, al revés.
 - **Las órdenes las da solo el servicio:** el usuario solo lee. Así nadie puede activar un actuador sin pasar por el servicio.
-- **El usuario escucha las órdenes** (`/cmd`), no solo el estado: así puede distinguir entre lo que el servicio pidió y lo que el actuador realmente hizo. Si llegó `on` en `/cmd` pero `/estado` sigue en `off`, la orden está pendiente; si pasa un tiempo y no cambia, el actuador falló o el ESP32 no la recibió. Con solo el estado, el usuario no sabría que hubo una orden.
+- **El usuario ve las órdenes**, no solo el estado: así puede distinguir entre lo que el servicio pidió y lo que el actuador realmente hizo. Si se ordenó `on` pero `/estado` sigue en `off`, la orden está pendiente; si pasa un tiempo y no cambia, el actuador falló o el ESP32 no la recibió. Con solo el estado, el usuario no sabría que hubo una orden. El servicio le pasa las dos cosas por actuador (`ordenado` y `real`), y la web marca "pendiente" cuando no coinciden.
+- **La web recibe los datos a través del servicio** (Server-Sent Events) en vez de conectarse al broker por WebSocket:
+  - con TLS, un navegador solo acepta el certificado del broker si se le instala la CA del proyecto; el servicio la usa directamente desde el archivo;
+  - las claves MQTT no quedan en el código de la página;
+  - las lecturas no son retenidas, pero el servicio guarda la última de cada sensor y se la manda a la web apenas se abre, sin esperar a la próxima;
+  - el control manual o el historial se pueden sumar después como pedidos al servicio, y las órdenes siguen saliendo solo de él.
+- **El servicio reenvía las órdenes cuando el nodo se conecta:** como `/cmd` no es retenido y el ESP32 no recuerda las órdenes al reiniciarse, cada vez que un nodo publica `online` en `{nodoId}/presencia` el servicio le vuelve a mandar las órdenes vigentes.
 - **Presencia con Last Will:** sin este tópico, si un ESP32 se corta el servicio y el usuario solo verían que dejan de llegar lecturas, sin saber si el nodo murió o simplemente no cambió nada. Con el Last Will el broker avisa en nombre del ESP32 aunque este no haya podido despedirse.
 - **Las alertas las genera el servicio**, no el usuario: la lógica de cuándo algo es una alerta queda en un solo lugar y todos los usuarios ven las mismas alertas.

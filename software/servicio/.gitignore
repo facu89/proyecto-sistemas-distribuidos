@@ -1,0 +1,3 @@
+node_modules
+# Configuración local (ver .env.example)
+.env

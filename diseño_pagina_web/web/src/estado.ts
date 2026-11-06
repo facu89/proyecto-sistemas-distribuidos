@@ -1,15 +1,9 @@
 /**
- * Estado de los actuadores de la home.
+ * Estado de los actuadores que dibuja la escena.
  *
- * Los ids coinciden con el {tipo} de los tópicos MQTT (`{nodoId}/actuador/{tipo}/...`),
- * así más adelante el estado real del bancal se puede volcar acá sin traducir nombres.
+ * Los ids coinciden con el {tipo} de los tópicos MQTT (`{nodoId}/actuador/{tipo}/...`) y con los
+ * del servicio, así el estado del bancal se vuelca acá sin traducir nombres (ver bancal.ts).
  */
 export type Actuador = 'luz' | 'ventilador' | 'riego'
 
 export type EstadoActuadores = Record<Actuador, boolean>
-
-export const ESTADO_INICIAL: EstadoActuadores = {
-  luz: false,
-  ventilador: false,
-  riego: false,
-}

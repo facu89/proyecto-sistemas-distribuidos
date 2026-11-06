@@ -14,8 +14,10 @@ services:
       - "18083:18083"
     volumes:
       - emqx-data:/opt/emqx/data
-      - ./config/emqx.conf:/opt/emqx/etc/emqx.conf:ro
-      - ./security/certs:/opt/emqx/etc/certs:ro
+      # ",z": en sistemas con SELinux (Fedora + Podman) etiqueta los archivos para que el
+      # contenedor los pueda leer; sin eso da "Permission denied". En Docker sin SELinux no hace nada.
+      - ./config/emqx.conf:/opt/emqx/etc/emqx.conf:ro,z
+      - ./security/certs:/opt/emqx/etc/certs:ro,z
     depends_on:
       mysql:
         condition: service_healthy
@@ -32,8 +34,8 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
       # Se ejecutan en orden alfabético y solo cuando el volumen está vacío
-      - ./mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
-      - ./mysql/02-init-users.sh:/docker-entrypoint-initdb.d/02-init-users.sh:ro
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro,z
+      - ./mysql/02-init-users.sh:/docker-entrypoint-initdb.d/02-init-users.sh:ro,z
     healthcheck:
       # $$ hace que la variable la resuelva el shell del contenedor, no compose
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p\"$$MYSQL_ROOT_PASSWORD\""]

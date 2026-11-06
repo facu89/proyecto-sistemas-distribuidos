@@ -1,19 +1,19 @@
 import { Stats } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
-import { Suspense, useState } from 'react'
+import { Suspense } from 'react'
 import * as THREE from 'three'
+import { estadoParaEscena, useBancal } from './bancal'
 import { Cargando } from './Cargando'
 import { DEPURACION } from './depuracion'
 import { Escena } from './escena/Escena'
-import { ESTADO_INICIAL, type Actuador } from './estado'
 import { PanelActuadores } from './panel/PanelActuadores'
+import { PanelLecturas } from './panel/PanelLecturas'
 
 export default function App() {
-  // Por ahora el estado vive solo en la página. Más adelante lo va a alimentar MQTT
-  // (`{nodoId}/actuador/{tipo}/estado`) y el panel va a pedir los cambios al servicio.
-  const [estado, setEstado] = useState(ESTADO_INICIAL)
-  const cambiar = (actuador: Actuador, encendido: boolean) =>
-    setEstado((anterior) => ({ ...anterior, [actuador]: encendido }))
+  // El estado llega del servicio por SSE (bancal.ts). La escena muestra lo que informó el ESP32 o,
+  // mientras el firmware no publique /estado, lo último que ordenó el servicio.
+  const bancal = useBancal()
+  const estado = estadoParaEscena(bancal.nodo)
 
   return (
     <main className="home">
@@ -40,7 +40,8 @@ export default function App() {
       </Canvas>
       <Cargando />
       {DEPURACION.fps && <Stats />}
-      <PanelActuadores estado={estado} onCambiar={cambiar} />
+      <PanelLecturas conexion={bancal.conexion} broker={bancal.broker} nodoId={bancal.nodoId} nodo={bancal.nodo} />
+      <PanelActuadores estado={estado} nodo={bancal.nodo} umbrales={bancal.umbrales} />
     </main>
   )
 }
