@@ -21,3 +21,9 @@ firmware/include/config.h
 # Secretos del broker (claves y usuarios reales). En git solo va secrets.example/
 software/broker/secrets/
 !software/broker/secrets.example/.env
+
+# Claves privadas y archivos de la CA (se generan localmente). En git solo van los .pem públicos
+software/broker/security/certs/*.key
+software/broker/security/certs/key.pem
+software/broker/security/certs/*.csr
+software/broker/security/certs/*.srl

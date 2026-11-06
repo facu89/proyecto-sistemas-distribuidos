@@ -14,3 +14,10 @@ VALUES ('servicio', SHA2(CONCAT(@salt, 'clave-del-servicio'), 256), @salt);
 SET @salt = HEX(RANDOM_BYTES(8));
 INSERT INTO mqtt_user (username, password_hash, salt)
 VALUES ('bancal1esp1', SHA2(CONCAT(@salt, 'clave-del-esp'), 256), @salt);
+
+-- ACLs del nodo del bancal 1: solo puede usar sus propios tópicos (ver topics.md)
+INSERT INTO mqtt_acl (username, permission, action, topic) VALUES
+  ('bancal1esp1', 'allow', 'publish',   'bancal1esp1/sensor/+'),
+  ('bancal1esp1', 'allow', 'publish',   'bancal1esp1/actuador/+/estado'),
+  ('bancal1esp1', 'allow', 'publish',   'bancal1esp1/presencia'),
+  ('bancal1esp1', 'allow', 'subscribe', 'bancal1esp1/actuador/+/cmd');

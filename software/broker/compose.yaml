@@ -9,11 +9,14 @@ services:
     env_file: secrets/.env
     ports:
       - "1883:1883"
+      - "8883:8883"   # MQTT sobre TLS
       - "8083:8083"
       - "18083:18083"
     volumes:
       - emqx-data:/opt/emqx/data
       - ./config/emqx.conf:/opt/emqx/etc/emqx.conf:ro
+      # Certificados TLS (las claves privadas no van a git, se generan localmente)
+      - ./security/certs:/opt/emqx/etc/certs:ro
     depends_on:
       mysql:
         condition: service_healthy
