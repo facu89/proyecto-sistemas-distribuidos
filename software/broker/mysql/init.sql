@@ -1,4 +1,4 @@
-CREATE TABLE mqtt_user (
+CREATE TABLE IF NOT EXISTS mqtt_user (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   username VARCHAR(100) NOT NULL,
   password_hash VARCHAR(100) NOT NULL,
@@ -9,13 +9,30 @@ CREATE TABLE mqtt_user (
   UNIQUE KEY mqtt_username (username)
 );
 
--- Reglas de acceso (ACL) de cada usuario MQTT. Las filas se cargan en secrets/usuarios.sql
-CREATE TABLE mqtt_acl (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+-- Tabla de Control de Acceso (ACLs)
+CREATE TABLE IF NOT EXISTS mqtt_acl (
+  id INT AUTO_INCREMENT PRIMARY KEY,
   username VARCHAR(100) NOT NULL,
   permission ENUM('allow', 'deny') NOT NULL,
   action ENUM('publish', 'subscribe', 'all') NOT NULL,
   topic VARCHAR(255) NOT NULL,
-  PRIMARY KEY (id),
-  KEY mqtt_acl_username (username)
+  UNIQUE KEY unique_acl (username, permission, action, topic)
 );
+
+-- Reglas dinámicas para cualquier ESP/nodo que se conecte:
+-- EMQX evalúa '$all' y reemplaza ${username} por el usuario con el que se autenticó el ESP.
+INSERT IGNORE INTO mqtt_acl (username, permission, action, topic) VALUES
+  ('$all', 'allow', 'publish',   '${username}/sensor/+'),
+  ('$all', 'allow', 'publish',   '${username}/actuador/+/estado'),
+  ('$all', 'allow', 'publish',   '${username}/presencia'),
+  ('$all', 'allow', 'subscribe', '${username}/actuador/+/cmd');
+
+-- Regla para el cliente web / dashboard (solo lectura)
+INSERT IGNORE INTO mqtt_acl (username, permission, action, topic) VALUES
+  ('cliente_web', 'allow', 'subscribe', '+/sensor/+'),
+  ('cliente_web', 'allow', 'subscribe', '+/actuador/+/estado'),
+  ('cliente_web', 'allow', 'subscribe', '+/presencia');
+
+-- Regla de administrador (acceso total a todos los tópicos)
+INSERT IGNORE INTO mqtt_acl (username, permission, action, topic) VALUES
+  ('admin', 'allow', 'all', '#');

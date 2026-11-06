@@ -22,7 +22,7 @@ firmware/include/config.h
 software/broker/secrets/
 !software/broker/secrets.example/.env
 
-# Claves privadas y archivos de la CA (se generan localmente). En git solo van los .pem públicos
+# Claves privadas y archivos de la CA (se generan o copian localmente)
 software/broker/security/certs/*.key
 software/broker/security/certs/key.pem
 software/broker/security/certs/*.csr
