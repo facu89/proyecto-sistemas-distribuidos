@@ -165,12 +165,20 @@ Cada actuador es un componente en `web/src/escena/actuadores/`.
 - [x] **Luz de la lámpara más notoria:** al encenderla, el estudio se atenúa como al caer la tarde (luz principal, relleno, entorno y la sombra que proyecta la luz principal bajan en ~1 s, en `Iluminacion.tsx`) y un velo CSS oscurece los bordes del fondo. La luz de la lámpara subió a 22 cd, así su tono cálido se nota en la flor y el ventilador. La lámpara no proyecta sombras: al estar justo encima de la planta casi no se verían y cuestan 6 renders extra por cuadro.
 - [ ] *(pendiente)* Ajustar materiales y luces comparando con el concepto en un navegador real (las pruebas se hicieron con Chrome sin ventana y render por software)
 
-### Fase 6 (futuro): adaptar a la realidad
+### Fase 6: adaptar a la realidad ✅ (en parte)
 
-- [ ] Conectarse al broker con `mqtt.js` por WebSocket. EMQX ya expone el puerto `8083`, ruta `/mqtt`.
-- [ ] La escena refleja `{nodoId}/actuador/{tipo}/estado` (estado real) y muestra "pendiente" cuando llegó `/cmd` pero `/estado` todavía no cambió
-- [ ] **Resolver el choque con `software/broker/topics.md`:** ahí dice que *"las órdenes las da solo el servicio; el usuario solo lee"*. Opción recomendada: el panel le pide la acción al servicio (por HTTP o con un tópico de pedido) y el servicio publica en `/cmd`. Así se mantiene la regla y la ACL.
-- [ ] Sumar lecturas de sensores, alertas, presencia y selección de bancal
+Se cambió el enfoque: la web **no se conecta al broker**. El servicio ([`software/servicio`](../software/servicio/README.md)) se conecta por TLS, aplica las reglas, publica las órdenes y le pasa el estado a la web por Server-Sent Events. Los motivos están en [`topics.md`](../software/broker/topics.md) ("La web recibe los datos a través del servicio"), y por qué la web se abre en `:8080` o en `:5173` está en el README del servicio.
+
+- [x] ~~Conectarse al broker con `mqtt.js` por WebSocket~~ → la web recibe los datos del servicio por SSE (`src/bancal.ts`, `useBancal()`)
+- [x] La escena refleja el estado del bancal: lo que informe el ESP32 en `/estado` o, mientras el firmware no lo publique, lo último que ordenó el servicio. El panel marca "pendiente" cuando no coinciden.
+- [x] **Choque con `topics.md` resuelto:** las órdenes las da solo el servicio, según sus reglas. El panel de actuadores pasó a ser de solo lectura ("Automático") y muestra la regla de cada uno.
+- [x] Panel **Sensores** arriba a la izquierda: lecturas, presencia del nodo y estado de la conexión (servicio y broker)
+- [x] Selección de nodo por URL (`?nodo=`); por defecto, el primero que informe el servicio
+- [ ] Alertas (cuando el servicio las genere)
+- [ ] Selector de bancal en la interfaz, cuando haya más de un nodo
+- [ ] Control manual desde el panel: un `POST` al servicio, que publica la orden (habría que definir cuánto dura la orden manual frente a las reglas)
+
+Lo que queda del sistema completo (firmware, broker, servicio) está en [Pendientes del README principal](../README.md#pendientes).
 
 ### Fase 7 (futuro): otros tipos de planta
 
