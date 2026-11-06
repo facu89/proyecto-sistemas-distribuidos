@@ -18,6 +18,10 @@
 // llegan en esa tarea, no en loop(). Por eso lo que se comparte con loop() pasa por un
 // std::atomic (el estado de conexión) o por una cola (las órdenes).
 
+// Certificado de la CA del broker (software/broker/security/certs/ca.pem), embebido en el binario
+// por board_build.embed_txtfiles en platformio.ini. Termina en '\0', como pide esp-tls para PEM.
+extern const char caBrokerInicio[] asm("_binary_certs_ca_pem_start");
+
 namespace {
 
 constexpr int KEEPALIVE_S = 10;  // PING cada ~5 s (la mitad); sin noticias por 1,5 × 10 = 15 s, el broker publica el Last Will
@@ -169,7 +173,9 @@ void redIniciar() {
   esp_mqtt_client_config_t config = {};
   config.broker.address.hostname = MQTT_HOST;
   config.broker.address.port = MQTT_PORT;
-  config.broker.address.transport = MQTT_TRANSPORT_OVER_TCP;
+  // TLS: el ESP32 verifica que el certificado del broker lo firmó nuestra CA y que incluye MQTT_HOST.
+  config.broker.address.transport = MQTT_TRANSPORT_OVER_SSL;
+  config.broker.verification.certificate = caBrokerInicio;
   config.credentials.client_id = NODO_ID;
   config.credentials.username = NODO_ID;
   config.credentials.authentication.password = MQTT_PASS;
