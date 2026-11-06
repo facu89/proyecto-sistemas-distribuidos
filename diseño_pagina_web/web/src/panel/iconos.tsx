@@ -61,3 +61,13 @@ export function IconoCerrar() {
     </svg>
   )
 }
+
+export function IconoSensores() {
+  return (
+    <svg {...base}>
+      <path d="M10 13.5V5a2 2 0 1 1 4 0v8.5a4 4 0 1 1-4 0Z" />
+      <path d="M12 9v6" />
+      <path d="M18 6h2M18 10h2" />
+    </svg>
+  )
+}

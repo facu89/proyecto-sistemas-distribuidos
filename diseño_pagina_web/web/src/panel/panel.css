@@ -1,4 +1,6 @@
-.actuadores {
+/* Paneles flotantes de la home: lecturas (arriba a la izquierda) y actuadores (arriba a la derecha) */
+
+.flotante {
   --panel-fondo: rgb(250 246 240 / 0.9);
   --panel-borde: rgb(255 255 255 / 0.6);
   --panel-texto: #2f2a25;
@@ -12,20 +14,40 @@
   --color-ventilador: #6f8fae;
   --color-riego: #3d6fd1;
 
+  /* Estado de la conexión */
+  --color-ok: #3f9a5b;
+  --color-alerta: #d08a1f;
+  --color-error: #c4513f;
+  --color-apagado: #a79c90;
+
   position: fixed;
   top: 16px;
-  right: 16px;
   z-index: 10;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
   gap: 10px;
   color: var(--panel-texto);
+  /* El contenedor ocupa también el lugar del panel cerrado: que no tape los clics de lo que hay abajo */
+  pointer-events: none;
+}
+
+.flotante > * {
+  pointer-events: auto;
+}
+
+.flotante[data-lado='derecha'] {
+  right: 16px;
+  align-items: flex-end;
+}
+
+.flotante[data-lado='izquierda'] {
+  left: 16px;
+  align-items: flex-start;
 }
 
 /* ---------- botón que despliega ---------- */
 
-.actuadores-boton {
+.flotante-boton {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -43,15 +65,15 @@
   transition: transform 0.15s ease;
 }
 
-.actuadores-boton:hover {
+.flotante-boton:hover {
   transform: translateY(-1px);
 }
 
-.actuadores-boton:active {
+.flotante-boton:active {
   transform: translateY(0);
 }
 
-.actuadores-contador {
+.flotante-contador {
   display: inline-grid;
   place-items: center;
   min-width: 20px;
@@ -66,7 +88,7 @@
 
 /* ---------- panel ---------- */
 
-.actuadores-panel {
+.flotante-panel {
   width: 300px;
   padding: 14px 14px 12px;
   border: 1px solid var(--panel-borde);
@@ -74,31 +96,38 @@
   background: var(--panel-fondo);
   backdrop-filter: blur(14px);
   box-shadow: var(--panel-sombra);
-  transform-origin: top right;
   transition:
     opacity 0.18s ease,
     transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2),
     visibility 0s linear 0.22s;
 }
 
-.actuadores-panel[data-abierto='false'] {
+.flotante[data-lado='derecha'] .flotante-panel {
+  transform-origin: top right;
+}
+
+.flotante[data-lado='izquierda'] .flotante-panel {
+  transform-origin: top left;
+}
+
+.flotante-panel[data-abierto='false'] {
   opacity: 0;
   transform: translateY(-8px) scale(0.96);
   visibility: hidden;
 }
 
-.actuadores-panel[data-abierto='true'] {
+.flotante-panel[data-abierto='true'] {
   transition-delay: 0s;
 }
 
-.actuadores-cabecera {
+.flotante-cabecera {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin: 0 0 6px 4px;
 }
 
-.actuadores-cabecera h2 {
+.flotante-cabecera h2 {
   margin: 0;
   font-size: 13px;
   font-weight: 600;
@@ -107,7 +136,7 @@
   color: var(--panel-tenue);
 }
 
-.actuadores-cerrar {
+.flotante-cerrar {
   display: grid;
   place-items: center;
   width: 32px;
@@ -119,15 +148,24 @@
   cursor: pointer;
 }
 
-.actuadores-cerrar svg {
+.flotante-cerrar svg {
   width: 18px;
   height: 18px;
 }
 
-.actuadores-cerrar:hover {
+.flotante-cerrar:hover {
   background: rgb(0 0 0 / 0.06);
   color: var(--panel-texto);
 }
+
+.flotante-nota {
+  margin: 10px 4px 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--panel-tenue);
+}
+
+/* ---------- actuadores ---------- */
 
 .actuadores-lista {
   display: grid;
@@ -172,6 +210,7 @@
   display: grid;
   flex: 1;
   gap: 2px;
+  min-width: 0;
 }
 
 .actuador-nombre {
@@ -188,22 +227,25 @@
   color: color-mix(in srgb, var(--color-encendido) 75%, black);
 }
 
-/* ---------- interruptor ---------- */
+.actuador-regla {
+  font-size: 11.5px;
+  line-height: 1.3;
+  color: var(--panel-tenue);
+}
+
+/* ---------- indicador con forma de interruptor (solo muestra, no se toca) ---------- */
 
 .interruptor {
   position: relative;
   flex: none;
   width: 48px;
   height: 28px;
-  padding: 0;
-  border: 0;
   border-radius: 999px;
   background: var(--interruptor-apagado);
-  cursor: pointer;
   transition: background-color 0.2s ease;
 }
 
-.interruptor[aria-checked='true'] {
+.interruptor[data-encendido='true'] {
   background: var(--color-encendido);
 }
 
@@ -219,20 +261,80 @@
   transition: transform 0.22s cubic-bezier(0.3, 1.4, 0.5, 1);
 }
 
-.interruptor[aria-checked='true'] .interruptor-perilla {
+.interruptor[data-encendido='true'] .interruptor-perilla {
   transform: translateX(20px);
 }
 
-.actuadores-nota {
-  margin: 10px 4px 0;
-  font-size: 12px;
-  line-height: 1.4;
+/* ---------- lecturas ---------- */
+
+.punto-estado {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-apagado);
+}
+
+.punto-estado[data-estado='ok'] { background: var(--color-ok); }
+.punto-estado[data-estado='alerta'] { background: var(--color-alerta); }
+.punto-estado[data-estado='error'] { background: var(--color-error); }
+
+.lecturas-estado {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgb(0 0 0 / 0.04);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.lecturas-estado strong {
+  font-weight: 600;
+}
+
+.lecturas-lista {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lectura {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 10px;
+  border-radius: 10px;
+}
+
+.lectura:nth-child(odd) {
+  background: rgb(0 0 0 / 0.025);
+}
+
+.lectura-nombre {
+  font-size: 14px;
+}
+
+.lectura-valor {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lectura-valor[data-sin-dato='true'] {
+  font-weight: 500;
   color: var(--panel-tenue);
 }
 
 /* ---------- foco visible con teclado ---------- */
 
-.actuadores :focus-visible {
+.flotante :focus-visible {
   outline: 2px solid var(--foco);
   outline-offset: 2px;
 }
@@ -240,18 +342,19 @@
 /* ---------- celular: el panel ocupa el ancho de la pantalla ---------- */
 
 @media (max-width: 480px) {
-  .actuadores {
+  .flotante {
     left: 16px;
+    right: 16px;
   }
 
-  .actuadores-panel {
+  .flotante-panel {
     width: 100%;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .actuadores-boton,
-  .actuadores-panel,
+  .flotante-boton,
+  .flotante-panel,
   .interruptor,
   .interruptor-perilla {
     transition: none;
