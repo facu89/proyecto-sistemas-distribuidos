@@ -3,7 +3,7 @@
 
 services:
   emqx:
-    image: emqx/emqx:5.8.6
+    image: emqx/emqx:5.10.5
     container_name: emqx
     restart: unless-stopped
     env_file: secrets/.env

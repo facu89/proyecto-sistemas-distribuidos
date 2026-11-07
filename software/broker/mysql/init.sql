@@ -36,3 +36,20 @@ INSERT IGNORE INTO mqtt_acl (username, permission, action, topic) VALUES
 -- Regla de administrador (acceso total a todos los tópicos)
 INSERT IGNORE INTO mqtt_acl (username, permission, action, topic) VALUES
   ('admin', 'allow', 'all', '#');
+
+-- Historial de lecturas de sensores. Lo llena la regla guardar_historial de EMQX (config/emqx.conf):
+--   * guarda una lectura por sensor (nodo + tipo) cada 10 minutos como mucho;
+--   * cuando la fila más vieja cumple 14 días, vacía la tabla.
+-- ts es la hora en que el broker recibió el mensaje, en UTC (la zona horaria del contenedor).
+CREATE TABLE IF NOT EXISTS historial_lecturas (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  nodo VARCHAR(100) NOT NULL,
+  tipo VARCHAR(50) NOT NULL,
+  valor DOUBLE NOT NULL,
+  ts DATETIME(3) NOT NULL,
+  PRIMARY KEY (id),
+  -- Para el chequeo "¿hay una lectura de este sensor en los últimos 10 minutos?"
+  KEY idx_sensor_ts (nodo, tipo, ts),
+  -- Para buscar rápido la fila más vieja (MIN(ts))
+  KEY idx_ts (ts)
+);

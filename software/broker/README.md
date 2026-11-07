@@ -1,6 +1,6 @@
 # Broker (EMQX + MySQL)
 
-EMQX es el broker MQTT; MySQL guarda los usuarios (`mqtt_user`) y sus permisos (`mqtt_acl`). Los tópicos y quién publica en cada uno están en [`topics.md`](topics.md).
+EMQX es el broker MQTT; MySQL guarda los usuarios (`mqtt_user`), sus permisos (`mqtt_acl`) y el historial de lecturas (`historial_lecturas`: una lectura por sensor cada 10 minutos, se vacía cada 14 días; lo llena la regla `guardar_historial` de `config/emqx.conf`). Los tópicos y quién publica en cada uno están en [`topics.md`](topics.md).
 
 ## Primera vez
 
