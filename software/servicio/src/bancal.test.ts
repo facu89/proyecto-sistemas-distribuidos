@@ -111,3 +111,65 @@ describe('estado real y mensajes raros', () => {
     assert.deepEqual(recibidas, [true, true])
   })
 })
+
+describe('modo manual / automático', () => {
+  it('cada nodo arranca en automático', () => {
+    bancales.alMensaje('bancal1esp1/sensor/luz', '1')
+    assert.equal(bancales.instantanea().nodos.bancal1esp1.modo, 'automatico')
+  })
+
+  it('en manual las lecturas se guardan pero no ordenan', () => {
+    bancales.alMensaje('bancal1esp1/presencia', 'online')
+    assert.deepEqual(bancales.setModo('bancal1esp1', 'manual'), { ok: true })
+    bancales.alMensaje('bancal1esp1/sensor/humedad_suelo', '10')
+    assert.deepEqual(publicadas, [])
+    assert.equal(bancales.instantanea().nodos.bancal1esp1.lecturas.humedad_suelo.valor, 10)
+  })
+
+  it('en manual la web ordena; en automático se rechaza', () => {
+    bancales.alMensaje('bancal1esp1/presencia', 'online')
+    const rechazo = bancales.ordenarManual('bancal1esp1', 'cooler', true)
+    assert.equal(rechazo.ok, false)
+    assert.equal(!rechazo.ok && rechazo.codigo, 409)
+    bancales.setModo('bancal1esp1', 'manual')
+    assert.deepEqual(bancales.ordenarManual('bancal1esp1', 'cooler', true), { ok: true })
+    assert.deepEqual(publicadas, ['bancal1esp1/actuador/cooler/cmd=1'])
+    assert.equal(bancales.instantanea().nodos.bancal1esp1.actuadores.cooler.ordenado, true)
+  })
+
+  it('nodo desconocido: 404', () => {
+    const r = bancales.setModo('no-existe', 'manual')
+    assert.equal(!r.ok && r.codigo, 404)
+  })
+
+  it('al volver a automático aplica las reglas con las últimas lecturas', () => {
+    bancales.alMensaje('bancal1esp1/presencia', 'online')
+    bancales.setModo('bancal1esp1', 'manual')
+    bancales.alMensaje('bancal1esp1/sensor/luz', '0') // a oscuras
+    bancales.alMensaje('bancal1esp1/sensor/temperatura_aire', '30')
+    bancales.ordenarManual('bancal1esp1', 'luz', false)
+    publicadas = []
+    bancales.setModo('bancal1esp1', 'automatico')
+    assert.deepEqual(publicadas.sort(), ['bancal1esp1/actuador/cooler/cmd=1', 'bancal1esp1/actuador/luz/cmd=1'])
+  })
+
+  it('al volver a automático, en la banda de histéresis queda lo que se puso a mano', () => {
+    bancales.alMensaje('bancal1esp1/presencia', 'online')
+    bancales.setModo('bancal1esp1', 'manual')
+    bancales.alMensaje('bancal1esp1/sensor/humedad_suelo', '50')
+    bancales.ordenarManual('bancal1esp1', 'riego', true)
+    publicadas = []
+    bancales.setModo('bancal1esp1', 'automatico')
+    assert.deepEqual(publicadas, [])
+    assert.equal(bancales.instantanea().nodos.bancal1esp1.actuadores.riego.ordenado, true)
+  })
+
+  it('las órdenes manuales también se reenvían cuando el nodo se reconecta', () => {
+    bancales.alMensaje('bancal1esp1/presencia', 'online')
+    bancales.setModo('bancal1esp1', 'manual')
+    bancales.ordenarManual('bancal1esp1', 'luz', true)
+    publicadas = []
+    bancales.alMensaje('bancal1esp1/presencia', 'online')
+    assert.deepEqual(publicadas, ['bancal1esp1/actuador/luz/cmd=1'])
+  })
+})

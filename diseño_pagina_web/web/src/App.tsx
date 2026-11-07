@@ -41,7 +41,13 @@ export default function App() {
       <Cargando />
       {DEPURACION.fps && <Stats />}
       <PanelLecturas conexion={bancal.conexion} broker={bancal.broker} nodoId={bancal.nodoId} nodo={bancal.nodo} />
-      <PanelActuadores estado={estado} nodo={bancal.nodo} umbrales={bancal.umbrales} />
+      <PanelActuadores
+        estado={estado}
+        nodoId={bancal.nodoId}
+        nodo={bancal.nodo}
+        umbrales={bancal.umbrales}
+        disponible={bancal.conexion === 'conectada' && bancal.broker}
+      />
     </main>
   )
 }

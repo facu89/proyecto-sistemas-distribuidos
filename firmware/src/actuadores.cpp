@@ -18,6 +18,7 @@ struct Actuador {
 Actuador actuadores[] = {
     {"luz", PIN_RELE_LUZ, true, false},
     {"cooler", PIN_RELE_COOLER, false, false},
+    {"riego", PIN_RELE_RIEGO, false, false},
 };
 
 constexpr size_t CANTIDAD = sizeof actuadores / sizeof actuadores[0];
@@ -46,8 +47,9 @@ void actuadoresIniciar() {
 int actuadoresAplicar(const char *tipo, const char *valor) {
   int prender = interpretar(valor);
   if (prender < 0) return -1;
+  const char *t = (strcmp(tipo, "bomba") == 0) ? "riego" : tipo;
   for (size_t i = 0; i < CANTIDAD; i++) {
-    if (strcmp(actuadores[i].tipo, tipo) == 0) {
+    if (strcmp(actuadores[i].tipo, t) == 0) {
       escribir(actuadores[i], prender == 1);
       return static_cast<int>(i);
     }

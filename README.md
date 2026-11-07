@@ -41,12 +41,13 @@ Las aplica el servicio ([`software/servicio/src/reglas.ts`](software/servicio/sr
 |---|---|---|
 | Luz | a oscuras (`luz` = 0) | con luz (`luz` = 1) |
 | Riego | `humedad_suelo` < 20 % | `humedad_suelo` ≥ 70 % |
-| Ventilador | `temperatura_aire` ≥ 28 °C | `temperatura_aire` < 26 °C |
+| Cooler (ventilador) | `temperatura_aire` ≥ 28 °C | `temperatura_aire` < 26 °C |
 
 ## Pendientes
 
 ### Firmware y actuadores
-- [ ] Conectar los actuadores reales (relés de luz, ventilador y riego) y que el ESP32 publique el estado real en `{nodoId}/actuador/{tipo}/estado` (QoS 1, retenido). El servicio y la web ya lo esperan: la web va a mostrar "pendiente" mientras la orden y el estado no coincidan.
+- [x] Actuadores reales en el ESP32 (relés de luz y cooler) que publican el estado real en `{nodoId}/actuador/{tipo}/estado` (`1`/`0`, retenido). La web muestra "pendiente" mientras la orden y el estado no coinciden.
+- [ ] Relé del riego (bomba): está en curso en `pines.h` y `actuadores.cpp`.
 - [ ] Resolver la IP del broker por nombre (mDNS, por ejemplo `broker.local`) en vez de fijarla en `config.h`. Así no habría que volver a grabar el ESP32 al cambiar de red. El certificado tendría que incluir ese nombre.
 
 ### Broker y seguridad
@@ -66,6 +67,8 @@ EMQX hace un HTTP POST por cada mensaje o evento que elijamos. Sirve cuando del 
 
 ### Servicio y alertas
 - [ ] Definir los tipos de alerta (`alertas/{tipoAlerta}`) y si van retenidos (está abierto en `topics.md`). Que el servicio las publique y se las pase a la web.
-- [ ] Control manual desde la web: `POST` al servicio, que publica la orden. Hay que definir cuánto dura una orden manual frente a las reglas automáticas.
-- [ ] Ajustar los umbrales con el uso (por ejemplo, el apagado del ventilador en 26 °C). Se cambian en `software/servicio/.env` sin tocar el código.
+- [x] Modo automático / manual desde la web: en manual, los interruptores del panel le piden la orden al servicio (ver [README del servicio](software/servicio/README.md#modo-automático--manual)).
+- [ ] **Modificar los rangos desde la web:** editar en el panel los umbrales del riego (20 % / 70 %) y del cooler (28 °C / 26 °C). Hoy solo se cambian en `software/servicio/.env` y reiniciando el servicio. Habría que validarlos y guardarlos (por ejemplo, en un JSON o en MySQL) para que sobrevivan a un reinicio.
+- [ ] Guardar el modo de cada nodo: hoy vive en memoria y al reiniciar el servicio todos vuelven a automático.
+- [ ] **Usuarios en la web:** hoy cualquiera que pueda abrirla puede cambiar el modo y manejar los actuadores. Hace falta antes de abrir el servicio a la red (`HTTP_HOST=0.0.0.0`).
 - [ ] Varios bancales: selector de nodo en la web (hoy se elige con `?nodo=`) y un usuario MQTT por ESP32.

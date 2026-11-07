@@ -18,17 +18,23 @@ export type EstadoActuador = {
   /** Lo último que ordenó el servicio en `/cmd`; `null` si todavía no ordenó nada. */
   ordenado: boolean | null
   instanteOrden: number | null
-  /**
-   * Lo que informó el ESP32 en `/estado`; `null` si nunca informó. Por ahora el firmware no lo
-   * publica (todavía no hay actuadores conectados), así que queda en `null`.
-   */
+  /** Lo que informó el ESP32 en `/estado` (`1`/`0`, retenido); `null` si nunca informó. */
   real: boolean | null
   instanteReal: number | null
 }
 
 export type Presencia = 'online' | 'offline'
 
+/**
+ * - `automatico`: el servicio ordena según las reglas (reglas.ts).
+ * - `manual`: las reglas no ordenan nada; las órdenes llegan desde la web (`ordenarManual`).
+ */
+export type Modo = 'automatico' | 'manual'
+
+export const MODOS: readonly Modo[] = ['automatico', 'manual']
+
 export type Nodo = {
+  modo: Modo
   presencia: Presencia | null
   instantePresencia: number | null
   /** Por {tipo} de sensor: temperatura_suelo, temperatura_aire, humedad_aire, humedad_suelo, luz. */
@@ -45,6 +51,9 @@ export type Instantanea = {
 }
 
 export type Publicar = (nodoId: string, actuador: Actuador, encendido: boolean) => Promise<void>
+
+/** Resultado de un pedido de la web. `codigo` es el estado HTTP con que se responde si falla. */
+export type Resultado = { ok: true } | { ok: false; codigo: 404 | 409; error: string }
 
 type Opciones = {
   umbrales: Umbrales
@@ -66,6 +75,8 @@ export function crearBancales({ umbrales, publicar, log = () => {}, ahora = Date
 
   function nodo(id: string): Nodo {
     nodos[id] ??= {
+      // Cada nodo arranca en automático, también cuando se reinicia el servicio (el modo no se guarda).
+      modo: 'automatico',
       presencia: null,
       instantePresencia: null,
       lecturas: {},
@@ -93,16 +104,28 @@ export function crearBancales({ umbrales, publicar, log = () => {}, ahora = Date
   }
 
   function alSensor(nodoId: string, tipo: string, texto: string): boolean {
-    const valor = aNumero(texto)
     const n = nodo(nodoId)
-    n.lecturas[tipo] = { valor, instante: ahora() }
-
-    const decision = decidir(tipo, valor, (a) => n.actuadores[a].ordenado, umbrales)
-    // Solo se publica cuando cambia la decisión, no con cada lectura (llegan cada 5 s).
-    if (decision && decision.encendido !== n.actuadores[decision.actuador].ordenado) {
-      ordenar(nodoId, decision.actuador, decision.encendido, `${tipo}=${texto}`)
-    }
+    n.lecturas[tipo] = { valor: aNumero(texto), instante: ahora() }
+    // En manual las lecturas se guardan (la web las muestra) pero no ordenan nada.
+    if (n.modo === 'automatico') aplicarRegla(nodoId, tipo, `${tipo}=${texto}`)
     return true
+  }
+
+  /** Aplica la regla del sensor `tipo` con su última lectura y, si corresponde, ordena. */
+  function aplicarRegla(nodoId: string, tipo: string, motivo: string) {
+    const n = nodo(nodoId)
+    const lectura = n.lecturas[tipo]
+    const decision = decidir(tipo, lectura?.valor ?? null, (a) => n.actuadores[a].ordenado, umbrales)
+    if (!decision) return
+
+    const estadoActuador = n.actuadores[decision.actuador]
+    // Se publica cuando cambia la decisión, o si el actuador informó un estado real distinto al deseado
+    const cambioDecision = decision.encendido !== estadoActuador.ordenado
+    const discrepaConReal = estadoActuador.real !== null && estadoActuador.real !== decision.encendido
+
+    if (cambioDecision || discrepaConReal) {
+      ordenar(nodoId, decision.actuador, decision.encendido, motivo)
+    }
   }
 
   function alEstado(nodoId: string, actuador: Actuador, texto: string): boolean {
@@ -151,6 +174,36 @@ export function crearBancales({ umbrales, publicar, log = () => {}, ahora = Date
       if (cambio) avisar()
     },
 
+    /**
+     * Cambia entre automático y manual. Al volver a automático se aplican enseguida las reglas con
+     * las últimas lecturas, sin esperar la próxima. Entre los umbrales de prender y apagar (histéresis)
+     * el actuador sigue como lo dejó el modo manual.
+     */
+    setModo(nodoId: string, modo: Modo): Resultado {
+      const n = nodos[nodoId]
+      if (!n) return { ok: false, codigo: 404, error: `No se conoce el nodo ${nodoId}` }
+      if (n.modo === modo) return { ok: true }
+      n.modo = modo
+      log(`${nodoId}: modo ${modo}`)
+      if (modo === 'automatico') {
+        for (const tipo of Object.keys(n.lecturas)) aplicarRegla(nodoId, tipo, `vuelta a automático, ${tipo}`)
+      }
+      avisar()
+      return { ok: true }
+    },
+
+    /** Orden pedida desde la web. Solo se acepta con el nodo en manual. */
+    ordenarManual(nodoId: string, actuador: Actuador, encendido: boolean): Resultado {
+      const n = nodos[nodoId]
+      if (!n) return { ok: false, codigo: 404, error: `No se conoce el nodo ${nodoId}` }
+      if (n.modo !== 'manual') {
+        return { ok: false, codigo: 409, error: `${nodoId} está en automático: pasalo a manual para manejar los actuadores` }
+      }
+      ordenar(nodoId, actuador, encendido, 'manual')
+      avisar()
+      return { ok: true }
+    },
+
     setBroker(conectado: boolean) {
       if (broker === conectado) return
       broker = conectado
@@ -169,7 +222,9 @@ export function crearBancales({ umbrales, publicar, log = () => {}, ahora = Date
 
 export type Bancales = ReturnType<typeof crearBancales>
 
-const esActuador = (tipo: string): tipo is Actuador => (ACTUADORES as readonly string[]).includes(tipo)
+export const esActuador = (tipo: string): tipo is Actuador => (ACTUADORES as readonly string[]).includes(tipo)
+
+export const esModo = (texto: unknown): texto is Modo => (MODOS as readonly unknown[]).includes(texto)
 
 /** "41.2" -> 41.2; "nan", vacío o cualquier cosa que no sea un número -> null. */
 function aNumero(texto: string): number | null {

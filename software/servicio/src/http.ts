@@ -5,13 +5,21 @@
  * - `GET /api/eventos`: Server-Sent Events. Al conectarse manda la instantánea completa y después una
  *   nueva en cada cambio (evento `estado`). El navegador lo lee con `new EventSource('/api/eventos')`
  *   y se reconecta solo si se corta.
+ * - `POST /api/nodos/{nodoId}/modo` con `{"modo": "automatico" | "manual"}`.
+ * - `POST /api/nodos/{nodoId}/actuadores/{tipo}` con `{"encendido": true | false}` (solo en manual).
  * - Todo lo demás: los archivos del build de la web (`pnpm build` en diseño_pagina_web/web).
+ *
+ * Los POST manejan actuadores reales, así que solo se aceptan con `Content-Type: application/json` y
+ * desde el mismo origen. Con eso, otra página abierta en el navegador no puede mandar órdenes: el
+ * navegador no deja enviar JSON a otro origen sin permiso (CORS) y este servidor no lo da.
  */
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
-import type { Bancales } from './bancal.ts'
+import { esActuador, esModo, type Bancales, type Resultado } from './bancal.ts'
 import type { Config } from './config.ts'
+
+const MAX_CUERPO = 1024
 
 /** Un comentario SSE cada tanto mantiene viva la conexión a través de proxies que cortan las que están quietas. */
 const LATIDO_MS = 15_000
@@ -34,6 +42,11 @@ const TIPOS: Record<string, string> = {
 export function crearServidorHttp({ http: config }: Config, bancales: Bancales, log: (mensaje: string) => void) {
   const servidor = http.createServer((pedido, respuesta) => {
     const url = new URL(pedido.url ?? '/', 'http://servicio')
+
+    if (pedido.method === 'POST' && url.pathname.startsWith('/api/')) {
+      atenderPost(pedido, respuesta, url.pathname, bancales, log)
+      return
+    }
 
     if (pedido.method !== 'GET' && pedido.method !== 'HEAD') {
       respuesta.writeHead(405, { Allow: 'GET, HEAD' }).end()
@@ -74,6 +87,11 @@ export function crearServidorHttp({ http: config }: Config, bancales: Bancales, 
     servirArchivo(config.webDist, url.pathname, respuesta)
   })
 
+  const escuchando = new Promise<number>((listo) => servidor.once('listening', () => {
+    const direccion = servidor.address()
+    listo(typeof direccion === 'object' && direccion ? direccion.port : config.puerto)
+  }))
+
   servidor.listen(config.puerto, config.host, () => {
     log(`Web y API en http://${config.host === '0.0.0.0' ? 'localhost' : config.host}:${config.puerto}`)
     if (!fs.existsSync(path.join(config.webDist, 'index.html'))) {
@@ -82,12 +100,97 @@ export function crearServidorHttp({ http: config }: Config, bancales: Bancales, 
   })
 
   return {
+    /** El puerto en que quedó escuchando (útil con puerto 0 en las pruebas). */
+    puerto: () => escuchando,
     cerrar: () =>
       new Promise<void>((listo) => {
         servidor.close(() => listo())
         servidor.closeAllConnections() // las conexiones SSE no se cierran solas
       }),
   }
+}
+
+const RUTA_MODO = /^\/api\/nodos\/([^/]+)\/modo$/
+const RUTA_ACTUADOR = /^\/api\/nodos\/([^/]+)\/actuadores\/([^/]+)$/
+
+function atenderPost(
+  pedido: http.IncomingMessage,
+  respuesta: http.ServerResponse,
+  ruta: string,
+  bancales: Bancales,
+  log: (mensaje: string) => void,
+) {
+  const responder = (codigo: number, error?: string) => {
+    if (!error) return void respuesta.writeHead(codigo).end()
+    respuesta.writeHead(codigo, { 'Content-Type': TIPOS['.json'] }).end(JSON.stringify({ error }))
+  }
+
+  const modo = RUTA_MODO.exec(ruta)
+  const actuador = RUTA_ACTUADOR.exec(ruta)
+  if (!modo && !actuador) return responder(404, 'No existe')
+
+  if (!mismoOrigen(pedido)) {
+    log(`POST ${ruta} rechazado: viene de otro origen (${pedido.headers.origin})`)
+    return responder(403, 'Solo se aceptan pedidos desde la misma página')
+  }
+  if (!pedido.headers['content-type']?.toLowerCase().startsWith('application/json')) {
+    return responder(415, 'El cuerpo tiene que ser JSON (Content-Type: application/json)')
+  }
+
+  leerJson(pedido)
+    .then((cuerpo) => {
+      let resultado: Resultado
+      if (modo) {
+        const valor = (cuerpo as { modo?: unknown } | null)?.modo
+        if (!esModo(valor)) return responder(400, 'Se espera {"modo": "automatico" | "manual"}')
+        resultado = bancales.setModo(decodeURIComponent(modo[1]), valor)
+      } else {
+        const tipo = decodeURIComponent(actuador![2])
+        if (!esActuador(tipo)) return responder(404, `No existe el actuador ${tipo}`)
+        const valor = (cuerpo as { encendido?: unknown } | null)?.encendido
+        if (typeof valor !== 'boolean') return responder(400, 'Se espera {"encendido": true | false}')
+        resultado = bancales.ordenarManual(decodeURIComponent(actuador![1]), tipo, valor)
+      }
+      if (resultado.ok) responder(204)
+      else responder(resultado.codigo, resultado.error)
+    })
+    .catch((error: Error) => responder(400, error.message))
+}
+
+/**
+ * El navegador manda `Origin` en los POST. Tiene que ser la misma máquina y puerto que `Host` (la página
+ * del servicio, o la de Vite, que reenvía sin cambiar `Host`). Sin `Origin` (curl) se acepta.
+ */
+function mismoOrigen(pedido: http.IncomingMessage): boolean {
+  const origen = pedido.headers.origin
+  if (!origen) return true
+  try {
+    return new URL(origen).host === pedido.headers.host
+  } catch {
+    return false
+  }
+}
+
+function leerJson(pedido: http.IncomingMessage): Promise<unknown> {
+  return new Promise((listo, fallo) => {
+    const partes: Buffer[] = []
+    let largo = 0
+    pedido.on('data', (parte: Buffer) => {
+      largo += parte.length
+      if (largo > MAX_CUERPO) {
+        fallo(new Error('Cuerpo demasiado grande'))
+        pedido.destroy()
+      } else partes.push(parte)
+    })
+    pedido.on('end', () => {
+      try {
+        listo(JSON.parse(Buffer.concat(partes).toString('utf8')))
+      } catch {
+        fallo(new Error('JSON inválido'))
+      }
+    })
+    pedido.on('error', fallo)
+  })
 }
 
 function servirArchivo(raiz: string, rutaPedida: string, respuesta: http.ServerResponse) {

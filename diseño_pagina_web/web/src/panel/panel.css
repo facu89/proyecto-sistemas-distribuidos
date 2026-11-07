@@ -86,6 +86,18 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Etiqueta en el botón cuando el bancal está en manual */
+.flotante-etiqueta {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--color-alerta);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 /* ---------- panel ---------- */
 
 .flotante-panel {
@@ -165,6 +177,59 @@
   color: var(--panel-tenue);
 }
 
+.flotante-error {
+  margin: 10px 4px 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  color: color-mix(in srgb, var(--color-error) 80%, black);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+/* ---------- selector de modo (automático / manual) ---------- */
+
+.modo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  margin: 0 0 10px;
+  padding: 3px;
+  border-radius: 12px;
+  background: rgb(0 0 0 / 0.06);
+}
+
+.modo-opcion {
+  height: 34px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--panel-tenue);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.modo-opcion:hover:not(:disabled, [aria-pressed='true']) {
+  color: var(--panel-texto);
+}
+
+.modo-opcion[aria-pressed='true'] {
+  background: #fff;
+  color: var(--panel-texto);
+  box-shadow: 0 1px 3px rgb(45 32 20 / 0.18);
+}
+
+.modo-opcion:disabled {
+  cursor: default;
+}
+
+.modo-opcion:disabled:not([aria-pressed='true']) {
+  opacity: 0.55;
+}
+
 /* ---------- actuadores ---------- */
 
 .actuadores-lista {
@@ -234,16 +299,32 @@
   color: var(--panel-tenue);
 }
 
-/* ---------- indicador con forma de interruptor (solo muestra, no se toca) ---------- */
+/* ---------- interruptor: indicador en automático (<span>), botón en manual (<button>) ---------- */
 
 .interruptor {
   position: relative;
   flex: none;
   width: 48px;
   height: 28px;
+  padding: 0;
+  border: 0;
   border-radius: 999px;
   background: var(--interruptor-apagado);
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+/* En automático el indicador queda más apagado, para que no parezca que se puede tocar */
+.actuadores-lista[data-modo='automatico'] .interruptor {
+  opacity: 0.6;
+}
+
+button.interruptor {
+  cursor: pointer;
+}
+
+button.interruptor:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 .interruptor[data-encendido='true'] {

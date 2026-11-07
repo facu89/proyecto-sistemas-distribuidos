@@ -3,7 +3,7 @@
 Es el "servicio" de [`../broker/topics.md`](../broker/topics.md). Hace tres cosas:
 
 1. Se conecta al broker **por TLS** (puerto 8883) con el usuario `servicio`. La ACL solo le permite leer `+/sensor/+`, `+/actuador/+/estado` y `+/presencia`, y publicar en `+/actuador/+/cmd`.
-2. Con cada lectura aplica las **reglas** y, si cambia la decisión, publica `on` u `off` en `{nodoId}/actuador/{tipo}/cmd`.
+2. Con cada lectura aplica las **reglas** y, si cambia la decisión, publica `1` (prender) o `0` (apagar) en `{nodoId}/actuador/{tipo}/cmd`.
 3. **Sirve la web** y le pasa el estado de los bancales por *Server-Sent Events* (SSE). El navegador no se conecta al broker ni tiene claves MQTT.
 
 ```
@@ -61,7 +61,7 @@ Están en `src/reglas.ts`, como funciones puras que se prueban en `src/reglas.te
 |---|---|---|---|
 | Luz | `luz` (digital) | `0` (a oscuras) | `1` (hay luz) |
 | Riego | `humedad_suelo` | menos de 20 % | 70 % o más |
-| Ventilador | `temperatura_aire` | 28 °C o más | menos de 26 °C |
+| Cooler (ventilador) | `temperatura_aire` | 28 °C o más | menos de 26 °C |
 
 - **Histéresis:** entre el umbral de prender y el de apagar, el actuador sigue como estaba. Si todavía no se sabe cómo estaba (el servicio recién arranca), se toma como apagado.
 - **Lecturas `nan`** (el sensor no respondió): no cambian nada.
@@ -69,17 +69,47 @@ Están en `src/reglas.ts`, como funciones puras que se prueban en `src/reglas.te
 - **Reenvío al reconectar:** `/cmd` no es retenido y el ESP32 no recuerda las órdenes al reiniciarse. Por eso, cada vez que un nodo publica `online` en `{nodoId}/presencia`, el servicio le reenvía las órdenes vigentes.
 - Los umbrales se cambian en `.env` (`RIEGO_*`, `VENTILADOR_*`) sin tocar el código.
 
+## Modo automático / manual
+
+Cada nodo tiene un modo, y se cambia desde el panel de actuadores de la web:
+
+- **Automático** (por defecto): el servicio ordena según las reglas de arriba.
+- **Manual:** las reglas no ordenan nada. Las lecturas se siguen guardando y mostrando. Cada interruptor del panel le pide la orden al servicio y el servicio la publica en `/cmd`. Las órdenes siguen saliendo solo del servicio, como dice `topics.md`.
+
+Detalles:
+
+- **Al volver a automático** se aplican enseguida las reglas con las últimas lecturas, sin esperar la próxima. Por la histéresis, si una lectura está entre los umbrales de prender y de apagar, el actuador **queda como se dejó en manual**. Por ejemplo, con el riego prendido a mano y el suelo en 50 %, sigue regando hasta llegar a 70 %.
+- **Las órdenes manuales también se reenvían** cuando el nodo se reconecta, igual que las automáticas.
+- **El modo vive en la memoria del servicio:** se comparte entre todas las pestañas abiertas (llega por SSE). Si se reinicia el servicio, todos los nodos vuelven a automático, que es lo más seguro.
+
 ## API para la web
 
-| Ruta | Qué devuelve |
+| Ruta | Qué hace |
 |---|---|
-| `GET /api/estado` | El estado de todos los nodos en JSON |
+| `GET /api/estado` | Devuelve el estado de todos los nodos en JSON |
 | `GET /api/eventos` | SSE: el mismo JSON al conectarse y otra vez en cada cambio (evento `estado`) |
+| `POST /api/nodos/{nodoId}/modo` | Cambia el modo. Cuerpo: `{"modo": "automatico"}` o `{"modo": "manual"}` |
+| `POST /api/nodos/{nodoId}/actuadores/{tipo}` | Orden manual (`tipo` = `luz`, `cooler` o `riego`). Cuerpo: `{"encendido": true}` o `false`. Con el nodo en automático responde 409 |
 | Cualquier otra | Los archivos de `diseño_pagina_web/web/dist/` |
 
-La forma del JSON es el tipo `Instantanea` de `src/bancal.ts`. La web lo importa de ahí (`import type`), así hay una sola definición. Por cada nodo trae: presencia, última lectura de cada sensor y, por actuador, `ordenado` (lo último que mandó el servicio) y `real` (lo que informó el ESP32 en `/estado`).
+Los `POST` responden 204 si salió bien, o un JSON `{"error": "..."}` con 400, 403, 404, 409 o 415.
 
-Mientras el firmware no publique `/estado`, `real` queda en `null` y la web muestra lo ordenado.
+La forma del JSON es el tipo `Instantanea` de `src/bancal.ts`. La web lo importa de ahí (`import type`), así hay una sola definición. Por cada nodo trae:
+- el `modo`;
+- la presencia;
+- la última lectura de cada sensor;
+- por actuador, `ordenado` (lo último que mandó el servicio) y `real` (lo que informó el ESP32 en `/estado`). La web marca "pendiente" mientras no coinciden.
+
+### Seguridad de los `POST`
+
+Manejan actuadores reales, así que el servicio solo los acepta:
+
+- con `Content-Type: application/json`, y
+- desde el mismo origen: si el navegador manda `Origin`, tiene que coincidir con `Host`.
+
+Así otra página abierta en el mismo navegador no puede mandar órdenes al servicio, porque el navegador no envía JSON a otro origen sin permiso (CORS). Lo comprueba `src/http.test.ts`.
+
+**No hay usuarios ni claves.** Cualquiera que pueda abrir la web puede cambiar el modo y manejar los actuadores. Por defecto el servicio escucha solo en esta máquina (`HTTP_HOST=127.0.0.1`). Con `0.0.0.0`, cualquier equipo de la red puede hacerlo. Agregar autenticación está en los pendientes.
 
 ## Archivos
 
@@ -89,6 +119,6 @@ src/
 ├── config.ts       # variables de entorno y valores por defecto
 ├── mqtt.ts         # conexión TLS, suscripciones y publicación de órdenes
 ├── reglas.ts       # las reglas (funciones puras) + reglas.test.ts
-├── bancal.ts       # estado en memoria por nodo y cuándo ordenar + bancal.test.ts
-└── http.ts         # web estática, /api/estado y /api/eventos
+├── bancal.ts       # estado en memoria por nodo, modo y cuándo ordenar + bancal.test.ts
+└── http.ts         # web estática, /api/estado, /api/eventos y los POST + http.test.ts
 ```

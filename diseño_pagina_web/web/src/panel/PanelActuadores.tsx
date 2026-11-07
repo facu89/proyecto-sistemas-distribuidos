@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
+import { cambiarModo, ordenarActuador, type Modo } from '../api'
 import { estaPendiente, type Instantanea, type Nodo } from '../bancal'
 import type { Actuador, EstadoActuadores } from '../estado'
 import { IconoControles, IconoLuz, IconoRiego, IconoVentilador } from './iconos'
@@ -7,8 +8,11 @@ import './panel.css'
 
 type Props = {
   estado: EstadoActuadores
+  nodoId: string
   nodo: Nodo | null
   umbrales: Instantanea['umbrales'] | null
+  /** Si hay conexión con el servicio y el servicio con el broker: sin eso no se puede pedir nada. */
+  disponible: boolean
 }
 
 type Umbrales = Instantanea['umbrales']
@@ -37,12 +41,38 @@ const ACTUADORES: {
   },
 ]
 
+const MODOS: { id: Modo; nombre: string }[] = [
+  { id: 'automatico', nombre: 'Automático' },
+  { id: 'manual', nombre: 'Manual' },
+]
+
 /**
- * Botón flotante arriba a la derecha que despliega el estado de cada actuador.
- * Solo muestra: las órdenes las da el servicio según los sensores (software/servicio/src/reglas.ts).
+ * Botón flotante arriba a la derecha que despliega los actuadores del bancal.
+ *
+ * - **Automático:** el servicio los prende y apaga según los sensores (software/servicio/src/reglas.ts);
+ *   el panel solo muestra.
+ * - **Manual:** las reglas no actúan y cada interruptor le pide la orden al servicio, que la publica en
+ *   `/cmd`. El interruptor muestra lo pedido; el texto, lo que informa el ESP32 ("pendiente" si difieren).
  */
-export function PanelActuadores({ estado, nodo, umbrales }: Props) {
+export function PanelActuadores({ estado, nodoId, nodo, umbrales, disponible }: Props) {
+  const [error, setError] = useState<string | null>(null)
+  const [enviando, setEnviando] = useState(false)
+  const modo = nodo?.modo ?? 'automatico'
+  const manual = modo === 'manual'
+  const habilitado = disponible && nodo !== null && !enviando
   const encendidos = ACTUADORES.filter((a) => estado[a.id]).length
+
+  const pedir = async (pedido: () => Promise<void>) => {
+    setEnviando(true)
+    setError(null)
+    try {
+      await pedido()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setEnviando(false)
+    }
+  }
 
   return (
     <PanelDesplegable
@@ -50,39 +80,91 @@ export function PanelActuadores({ estado, nodo, umbrales }: Props) {
       titulo="Actuadores"
       icono={<IconoControles />}
       insignia={
-        encendidos > 0 && (
-          <span className="flotante-contador" aria-label={`${encendidos} encendidos`}>
-            {encendidos}
-          </span>
-        )
+        <>
+          {manual && <span className="flotante-etiqueta">Manual</span>}
+          {encendidos > 0 && (
+            <span className="flotante-contador" aria-label={`${encendidos} encendidos`}>
+              {encendidos}
+            </span>
+          )}
+        </>
       }
     >
-      <ul className="actuadores-lista">
+      <div className="modo" role="group" aria-label="Modo de control">
+        {MODOS.map(({ id, nombre }) => (
+          <button
+            key={id}
+            type="button"
+            className="modo-opcion"
+            aria-pressed={modo === id}
+            disabled={!habilitado}
+            onClick={() => modo !== id && pedir(() => cambiarModo(nodoId, id))}
+          >
+            {nombre}
+          </button>
+        ))}
+      </div>
+
+      <ul className="actuadores-lista" data-modo={modo}>
         {ACTUADORES.map(({ id, nombre, icono, textos, regla }) => {
           const encendido = estado[id]
-          const pendiente = estaPendiente(nodo?.actuadores[id])
+          const actuador = nodo?.actuadores[id]
+          const pendiente = estaPendiente(actuador)
+          // En manual el interruptor muestra lo pedido (lo último ordenado); el texto, el estado real.
+          const pedido = actuador?.ordenado ?? encendido
           const textoRegla = regla(umbrales)
+          const idNombre = `actuador-${id}`
           return (
             <li key={id} className="actuador" data-actuador={id} data-encendido={encendido}>
               <span className="actuador-icono">{icono}</span>
               <span className="actuador-texto">
-                <span className="actuador-nombre">{nombre}</span>
+                <span id={idNombre} className="actuador-nombre">
+                  {nombre}
+                </span>
                 <span className="actuador-estado">
                   {textos[Number(encendido)]}
                   {pendiente && ' · pendiente'}
                 </span>
-                {textoRegla && <span className="actuador-regla">{textoRegla}</span>}
+                {textoRegla && (
+                  <span className="actuador-regla">{manual ? `En automático: ${textoRegla[0].toLowerCase()}${textoRegla.slice(1)}` : textoRegla}</span>
+                )}
               </span>
-              {/* Indicador, no interruptor: el estado ya se lee en el texto de al lado */}
-              <span className="interruptor" data-encendido={encendido} aria-hidden>
-                <span className="interruptor-perilla" />
-              </span>
+              {manual ? (
+                <button
+                  type="button"
+                  role="switch"
+                  className="interruptor"
+                  data-encendido={pedido}
+                  aria-checked={pedido}
+                  aria-labelledby={idNombre}
+                  disabled={!habilitado}
+                  onClick={() => pedir(() => ordenarActuador(nodoId, id, !pedido))}
+                >
+                  <span className="interruptor-perilla" />
+                </button>
+              ) : (
+                // En automático es solo un indicador: el estado ya se lee en el texto de al lado
+                <span className="interruptor" data-encendido={encendido} aria-hidden>
+                  <span className="interruptor-perilla" />
+                </span>
+              )}
             </li>
           )
         })}
       </ul>
 
-      <p className="flotante-nota">Automático: el servicio los prende y apaga según los sensores del bancal.</p>
+      {error && (
+        <p className="flotante-error" role="alert">
+          {error}
+        </p>
+      )}
+      <p className="flotante-nota">
+        {!disponible
+          ? 'Sin conexión con el servicio: no se puede cambiar nada por ahora.'
+          : manual
+            ? 'Manual: los interruptores mandan la orden al bancal. Las reglas no actúan hasta volver a automático.'
+            : 'Automático: el servicio los prende y apaga según los sensores del bancal.'}
+      </p>
     </PanelDesplegable>
   )
 }
