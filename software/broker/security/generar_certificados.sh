@@ -20,7 +20,9 @@ AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DIR="$AQUI/certs"
 mkdir -p "$DIR"
 
-if [ "$#" -eq 0 ]; then
+# En el contenedor "certs" (ver preparar_certificados.sh) no está ips_locales.sh: ahí las IPs llegan
+# siempre como argumentos, porque desde adentro de un contenedor no se ven las IPs de la máquina.
+if [ "$#" -eq 0 ] && [ -f "$AQUI/ips_locales.sh" ]; then
     # shellcheck disable=SC2046
     set -- $("$AQUI/ips_locales.sh")
     if [ "$#" -eq 0 ]; then

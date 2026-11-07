@@ -13,7 +13,7 @@ origen = os.path.normpath(os.path.join(proyecto, "..", "software", "broker", "se
 destino = os.path.join(proyecto, "certs", "ca.pem")
 
 if not os.path.isfile(origen):
-    raise SystemExit("Falta " + origen + ": generá los certificados con generar_certificados.sh")
+    raise SystemExit("Falta " + origen + ": levantá el broker (docker compose up -d en software/broker), que genera los certificados")
 
 os.makedirs(os.path.dirname(destino), exist_ok=True)
 shutil.copyfile(origen, destino)

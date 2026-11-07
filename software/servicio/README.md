@@ -14,6 +14,8 @@ ESP32 ──MQTT/TLS──► EMQX ◄──MQTT/TLS (usuario "servicio")──�
 
 ## Cómo se corre
 
+**Con Docker (lo normal):** `docker compose up -d` en `software/broker` levanta el servicio junto con el broker, en el contenedor `servicio` (imagen definida en [`Dockerfile`](Dockerfile), que también compila la web). Ver el [README del broker](../broker/README.md#cómo-se-levanta). Lo que sigue es para correrlo fuera de Docker, mientras se desarrolla.
+
 Requiere Node 22.18 o más nuevo (corre el TypeScript directamente, sin compilar) y el broker levantado (`../broker/levantar.sh`).
 
 ```bash

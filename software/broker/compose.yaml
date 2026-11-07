@@ -1,7 +1,21 @@
 # Los secretos están en secrets/ (no se sube a git). La primera vez:
 #   cp -r secrets.example secrets   y completar secrets/.env
+#
+# Con "docker compose up -d" (o "podman compose up -d") se levanta todo, en este orden:
+#   certs -> mysql -> emqx -> servicio
+# No hace falta instalar nada más que Docker o Podman: los certificados y la web se generan en contenedores.
 
 services:
+  # Corre una vez en cada "up" y termina: deja listo el certificado TLS del broker en security/certs
+  # (lo regenera solo si hace falta, ver security/preparar_certificados.sh). Usa BROKER_IP de secrets/.env.
+  certs:
+    build: ./security
+    container_name: certs
+    restart: "no"
+    env_file: secrets/.env
+    volumes:
+      - ./security/certs:/security/certs:z
+
   emqx:
     image: emqx/emqx:5.10.5
     container_name: emqx
@@ -19,7 +33,38 @@ services:
       - ./config/emqx.conf:/opt/emqx/etc/emqx.conf:ro,z
       - ./security/certs:/opt/emqx/etc/certs:ro,z
     depends_on:
+      certs:
+        condition: service_completed_successfully
       mysql:
+        condition: service_healthy
+    # Para que el servicio arranque recién cuando EMQX está listo para aceptar conexiones
+    healthcheck:
+      test: ["CMD-SHELL", "emqx ctl status | grep -q 'is started'"]
+      interval: 5s
+      retries: 30
+
+  # Servicio central (software/servicio): reglas de los actuadores y la web en http://localhost:8080.
+  # La imagen compila también la web, por eso el contexto es la raíz del repo.
+  servicio:
+    build:
+      context: ../..
+      dockerfile: software/servicio/Dockerfile
+    container_name: servicio
+    restart: unless-stopped
+    # Usuario y clave MQTT del servicio (MQTT_SERVICIO_USER y MQTT_SERVICIO_PASSWORD)
+    env_file: secrets/.env
+    environment:
+      # Dentro de la red de compose el broker se llama "emqx" (el certificado incluye ese nombre)
+      MQTT_URL: mqtts://emqx:8883
+      MQTT_CA: /certs/ca.pem
+      # Escucha en todas las interfaces del contenedor; el "ports" de abajo decide quién llega
+      HTTP_HOST: 0.0.0.0
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./security/certs:/certs:ro,z
+    depends_on:
+      emqx:
         condition: service_healthy
 
   mysql:

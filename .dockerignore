@@ -1,0 +1,11 @@
+# Contexto de la imagen del servicio (software/servicio/Dockerfile), que es la raíz del repo.
+# Solo necesita software/servicio y diseño_pagina_web/{web,modelos}; lo demás se deja afuera para que
+# el build sea rápido y no se copien secretos ni dependencias compiladas para Windows.
+.git
+**/node_modules
+**/dist
+**/.env
+firmware
+software/broker
+diseño_pagina_web/blender
+diseño_pagina_web/*.jpeg

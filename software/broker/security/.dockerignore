@@ -1,0 +1,2 @@
+# La imagen "certs" solo necesita los scripts; los certificados se montan como volumen
+certs

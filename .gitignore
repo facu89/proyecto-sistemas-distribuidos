@@ -30,3 +30,7 @@ software/broker/security/certs/*.srl
 
 # Copia de la CA del broker que genera firmware/scripts/copiar_ca.py al compilar
 firmware/certs/
+
+# Certificados TLS del broker: cada máquina genera los suyos (contenedor "certs" de compose.yaml).
+# La CA es local y el firmware la copia al compilar (firmware/scripts/copiar_ca.py).
+software/broker/security/certs/*.pem
