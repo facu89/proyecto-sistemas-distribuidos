@@ -9,6 +9,10 @@ constexpr uint8_t PIN_LUZ = 3;            // DO del módulo LDR (digital: luz s�
 constexpr uint8_t PIN_HUMEDAD_SUELO = 7;       // una punta de la sonda HW-080, con 10 kΩ a GND (ADC1, lee con WiFi prendido)
 constexpr uint8_t PIN_ALIMENTACION_SUELO = 6;  // la otra punta: se pone en HIGH solo mientras se mide
 
+// Actuadores
+constexpr uint8_t PIN_RELE_LUZ = 33;     // S del relé KY-019 (activo en HIGH) que maneja la lámpara
+constexpr uint8_t PIN_RELE_COOLER = 47;  // IN1 del módulo de 2 relés (activo en LOW, VCC a Ve y JD-VCC a 5V, sin jumper)
+
 // Pantalla OLED integrada. Los valores vienen de la variante de la placa.
 constexpr uint8_t PIN_OLED_SDA = SDA_OLED;  // GPIO17
 constexpr uint8_t PIN_OLED_SCL = SCL_OLED;  // GPIO18
