@@ -24,8 +24,8 @@ constexpr size_t CANTIDAD = sizeof actuadores / sizeof actuadores[0];
 
 // Devuelve 1 para prender, 0 para apagar y -1 si el valor no se entiende.
 int interpretar(const char *valor) {
-  if (strcasecmp(valor, "1") == 0 || strcasecmp(valor, "on") == 0) return 1;
-  if (strcasecmp(valor, "0") == 0 || strcasecmp(valor, "off") == 0) return 0;
+  if (strcmp(valor, "1") == 0) return 1;
+  if (strcmp(valor, "0") == 0) return 0;
   return -1;
 }
 

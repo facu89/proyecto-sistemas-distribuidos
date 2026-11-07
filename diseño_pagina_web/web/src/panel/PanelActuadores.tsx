@@ -22,8 +22,8 @@ const ACTUADORES: {
 }[] = [
   { id: 'luz', nombre: 'Luz', icono: <IconoLuz />, textos: ['Apagada', 'Encendida'], regla: () => 'Se prende a oscuras' },
   {
-    id: 'ventilador',
-    nombre: 'Ventilador',
+    id: 'cooler',
+    nombre: 'Cooler',
     icono: <IconoVentilador />,
     textos: ['Apagado', 'Encendido'],
     regla: (u) => (u ? `Prende desde ${u.ventiladorEncenderDesde} °C, apaga bajo ${u.ventiladorApagarDebajoDe} °C` : ''),

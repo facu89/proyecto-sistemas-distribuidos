@@ -79,7 +79,7 @@ export function estadoParaEscena(nodo: Nodo | null): EstadoActuadores {
     const estado = nodo?.actuadores[a]
     return estado?.real ?? estado?.ordenado ?? false
   }
-  return { luz: valor('luz'), ventilador: valor('ventilador'), riego: valor('riego') }
+  return { luz: valor('luz'), cooler: valor('cooler'), riego: valor('riego') }
 }
 
 /** El servicio ordenó algo y el ESP32 todavía informa otra cosa (solo cuando el firmware publique `/estado`). */

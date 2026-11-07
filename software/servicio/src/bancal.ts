@@ -81,7 +81,7 @@ export function crearBancales({ umbrales, publicar, log = () => {}, ahora = Date
     const estado = nodo(nodoId).actuadores[actuador]
     estado.ordenado = encendido
     estado.instanteOrden = ahora()
-    log(`${nodoId}/${actuador} -> ${encendido ? 'on' : 'off'} (${motivo})`)
+    log(`${nodoId}/${actuador} -> ${encendido ? '1' : '0'} (${motivo})`)
     publicar(nodoId, actuador, encendido).catch((error: unknown) => {
       log(`No se pudo publicar ${nodoId}/${actuador}: ${error instanceof Error ? error.message : error}`)
       if (estado.ordenado === encendido) {
@@ -106,9 +106,11 @@ export function crearBancales({ umbrales, publicar, log = () => {}, ahora = Date
   }
 
   function alEstado(nodoId: string, actuador: Actuador, texto: string): boolean {
-    if (texto !== 'on' && texto !== 'off') return false
+    if (texto !== '1' && texto !== '0') return false
     const estado = nodo(nodoId).actuadores[actuador]
-    estado.real = texto === 'on'
+    const real = texto === '1'
+    if (estado.real === real) return false
+    estado.real = real
     estado.instanteReal = ahora()
     return true
   }

@@ -54,10 +54,10 @@ export function conectarBroker({ mqtt: config }: Config, { alMensaje, alConectar
   cliente.on('message', (topico, mensaje) => alMensaje(topico, mensaje.toString('utf8')))
 
   return {
-    /** Publica `on`/`off` en `{nodoId}/actuador/{tipo}/cmd`. Sin conexión, mqtt.js la encola hasta reconectar. */
+    /** Publica `1`/`0` en `{nodoId}/actuador/{tipo}/cmd`. Sin conexión, mqtt.js la encola hasta reconectar. */
     async publicarOrden(nodoId: string, actuador: Actuador, encendido: boolean) {
       // Sin retain: si quedara retenida, el ESP32 la volvería a ejecutar cada vez que se conecta.
-      await cliente.publishAsync(`${nodoId}/actuador/${actuador}/cmd`, encendido ? 'on' : 'off', {
+      await cliente.publishAsync(`${nodoId}/actuador/${actuador}/cmd`, encendido ? '1' : '0', {
         qos: QOS_ORDENES,
         retain: false,
       })

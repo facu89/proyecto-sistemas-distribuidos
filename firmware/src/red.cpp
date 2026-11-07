@@ -92,6 +92,9 @@ void alEvento(void *, esp_event_base_t, int32_t id, void *datos) {
         errorTipo = evento->error_handle->error_type;
         errorCodigoConexion = evento->error_handle->connect_return_code;
         errorSocket = evento->error_handle->esp_transport_sock_errno;
+        Serial.printf("MQTT ERROR: tipo=%d codigo=%d sock=%d tls=%d\n",
+                      errorTipo.load(), errorCodigoConexion.load(), errorSocket.load(),
+                      evento->error_handle->esp_tls_last_esp_err);
       }
       break;
     default:
@@ -130,7 +133,7 @@ void informarCambios() {
     case EstadoRed::SinBroker:
       Serial.printf("[%lu s] Sin conexión con el broker %s:%lu\n", millis() / 1000, MQTT_HOST,
                     (unsigned long)MQTT_PORT);
-      if (anterior == EstadoRed::Conectado) imprimirMotivo();
+      imprimirMotivo();
       break;
     case EstadoRed::Conectado:
       Serial.printf("[%lu s] Conectado al broker como \"%s\"\n", millis() / 1000, NODO_ID);

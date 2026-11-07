@@ -186,6 +186,7 @@
 }
 
 .actuador[data-actuador='luz'] { --color-encendido: var(--color-luz); }
+.actuador[data-actuador='cooler'],
 .actuador[data-actuador='ventilador'] { --color-encendido: var(--color-ventilador); }
 .actuador[data-actuador='riego'] { --color-encendido: var(--color-riego); }
 

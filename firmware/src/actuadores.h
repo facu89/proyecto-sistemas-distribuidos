@@ -7,7 +7,7 @@
 
 void actuadoresIniciar();
 
-// Aplica una orden: "1" u "on" prende, "0" u "off" apaga (sin distinguir mayúsculas).
+// Aplica una orden: "1" prende, "0" apaga.
 // Devuelve el índice del actuador, o -1 si el tipo no existe o el valor no se entiende.
 int actuadoresAplicar(const char *tipo, const char *valor);
 

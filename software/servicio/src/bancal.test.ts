@@ -12,7 +12,7 @@ beforeEach(() => {
   bancales = crearBancales({
     umbrales: UMBRALES,
     publicar: async (nodo, actuador, encendido) => {
-      publicadas.push(`${nodo}/actuador/${actuador}/cmd=${encendido ? 'on' : 'off'}`)
+      publicadas.push(`${nodo}/actuador/${actuador}/cmd=${encendido ? '1' : '0'}`)
     },
   })
 })
@@ -24,19 +24,19 @@ describe('órdenes', () => {
     bancales.alMensaje('bancal1esp1/sensor/humedad_suelo', '50')
     bancales.alMensaje('bancal1esp1/sensor/humedad_suelo', '72')
     bancales.alMensaje('bancal1esp1/sensor/humedad_suelo', '80')
-    assert.deepEqual(publicadas, ['bancal1esp1/actuador/riego/cmd=on', 'bancal1esp1/actuador/riego/cmd=off'])
+    assert.deepEqual(publicadas, ['bancal1esp1/actuador/riego/cmd=1', 'bancal1esp1/actuador/riego/cmd=0'])
   })
 
   it('con el servicio recién arrancado y lectura en la banda intermedia, ordena apagar una vez', () => {
     bancales.alMensaje('bancal1esp1/sensor/temperatura_aire', '27.0')
     bancales.alMensaje('bancal1esp1/sensor/temperatura_aire', '27.0')
-    assert.deepEqual(publicadas, ['bancal1esp1/actuador/ventilador/cmd=off'])
+    assert.deepEqual(publicadas, ['bancal1esp1/actuador/cooler/cmd=0'])
   })
 
   it('cada nodo tiene su propio estado', () => {
     bancales.alMensaje('bancal1esp1/sensor/luz', '0')
     bancales.alMensaje('bancal2esp1/sensor/luz', '0')
-    assert.deepEqual(publicadas, ['bancal1esp1/actuador/luz/cmd=on', 'bancal2esp1/actuador/luz/cmd=on'])
+    assert.deepEqual(publicadas, ['bancal1esp1/actuador/luz/cmd=1', 'bancal2esp1/actuador/luz/cmd=1'])
   })
 
   it('"nan" se guarda como null y no ordena nada', () => {
@@ -73,7 +73,7 @@ describe('presencia', () => {
     bancales.alMensaje('bancal1esp1/presencia', 'offline')
     assert.deepEqual(publicadas, [])
     bancales.alMensaje('bancal1esp1/presencia', 'online')
-    assert.deepEqual(publicadas, ['bancal1esp1/actuador/luz/cmd=on', 'bancal1esp1/actuador/riego/cmd=on'])
+    assert.deepEqual(publicadas, ['bancal1esp1/actuador/luz/cmd=1', 'bancal1esp1/actuador/riego/cmd=1'])
     assert.equal(bancales.instantanea().nodos.bancal1esp1.presencia, 'online')
   })
 
@@ -85,7 +85,7 @@ describe('presencia', () => {
 
 describe('estado real y mensajes raros', () => {
   it('guarda el /estado que informa el ESP32', () => {
-    bancales.alMensaje('bancal1esp1/actuador/riego/estado', 'on')
+    bancales.alMensaje('bancal1esp1/actuador/riego/estado', '1')
     assert.equal(bancales.instantanea().nodos.bancal1esp1.actuadores.riego.real, true)
   })
 
@@ -93,7 +93,8 @@ describe('estado real y mensajes raros', () => {
     let avisos = 0
     bancales.alCambiar(() => avisos++)
     bancales.alMensaje('bancal1esp1/actuador/riego/estado', 'quizás')
-    bancales.alMensaje('bancal1esp1/actuador/bomba/estado', 'on')
+    bancales.alMensaje('bancal1esp1/actuador/riego/estado', 'on')
+    bancales.alMensaje('bancal1esp1/actuador/bomba/estado', '1')
     bancales.alMensaje('bancal1esp1/otra/cosa', '1')
     bancales.alMensaje('bancal1esp1/presencia', 'dormido')
     assert.equal(bancales.instantanea().nodos.bancal1esp1?.actuadores.riego.real ?? null, null)

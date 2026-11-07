@@ -41,11 +41,11 @@ export function Modelo({ estado }: Props) {
       <Planta
         brisa={actions.Planta_Brisa}
         viento={actions.Planta_Viento}
-        hayViento={estado.ventilador}
+        hayViento={estado.cooler}
         menosMovimiento={menosMovimiento}
       />
       <Lampara scene={scene} materiales={materials} encendida={estado.luz} />
-      <Ventilador scene={scene} encendido={estado.ventilador} menosMovimiento={menosMovimiento} />
+      <Ventilador scene={scene} encendido={estado.cooler} menosMovimiento={menosMovimiento} />
       <Riego
         scene={scene}
         accion={actions.Regadera_Regar}

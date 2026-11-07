@@ -37,8 +37,8 @@ describe('ventilador (prende >= 28 °C, apaga < 26 °C)', () => {
   it('27 no lo prende si estaba apagado', () => assert.equal(encendido('temperatura_aire', 27, false), false))
   it('entre 26 y 28 sigue encendido si ya lo estaba', () => assert.equal(encendido('temperatura_aire', 26, true), true))
   it('apaga debajo de 26', () => assert.equal(encendido('temperatura_aire', 25.9, true), false))
-  it('maneja el actuador ventilador', () =>
-    assert.equal(decidir('temperatura_aire', 30, conEstado(null), UMBRALES)?.actuador, 'ventilador'))
+  it('maneja el actuador cooler', () =>
+    assert.equal(decidir('temperatura_aire', 30, conEstado(null), UMBRALES)?.actuador, 'cooler'))
 })
 
 describe('lecturas que no deciden nada', () => {

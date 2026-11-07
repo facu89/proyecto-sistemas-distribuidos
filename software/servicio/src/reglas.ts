@@ -8,9 +8,9 @@
  */
 
 /** Los ids coinciden con el {tipo} de `{nodoId}/actuador/{tipo}/cmd` y con los de la web (estado.ts). */
-export type Actuador = 'luz' | 'ventilador' | 'riego'
+export type Actuador = 'luz' | 'cooler' | 'riego'
 
-export const ACTUADORES: readonly Actuador[] = ['luz', 'ventilador', 'riego']
+export const ACTUADORES: readonly Actuador[] = ['luz', 'cooler', 'riego']
 
 export type Umbrales = {
   /** Riego: se prende con humedad_suelo < este valor (%). */
@@ -61,11 +61,11 @@ export function decidir(
 
     case 'temperatura_aire':
       return {
-        actuador: 'ventilador',
+        actuador: 'cooler',
         encendido: conHisteresis(
           valor >= umbrales.ventiladorEncenderDesde,
           valor < umbrales.ventiladorApagarDebajoDe,
-          actual('ventilador'),
+          actual('cooler'),
         ),
       }
 
