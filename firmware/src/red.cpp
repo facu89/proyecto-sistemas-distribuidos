@@ -29,6 +29,7 @@ constexpr int RECONEXION_MS = 5000;
 constexpr int QOS_LECTURAS = 0;
 constexpr int QOS_PRESENCIA = 1;
 constexpr int QOS_ORDENES = 1;
+constexpr int QOS_ESTADO = 1;
 constexpr const char *SUFIJO_ORDEN = "/cmd";
 
 esp_mqtt_client_handle_t cliente = nullptr;
@@ -198,16 +199,22 @@ bool redActualizar(Orden &orden) {
   }
   informarCambios();
 
-  bool hubo = false;
+  // De a una por llamada, para que loop() ejecute todas aunque lleguen varias juntas.
   Orden nueva;
-  while (xQueueReceive(colaOrdenes, &nueva, 0) == pdTRUE) {
-    nueva.instante = millis();
-    nueva.hay = true;
-    Serial.printf("Orden recibida: %s -> %s\n", nueva.tipo, nueva.valor);
-    orden = nueva;
-    hubo = true;
-  }
-  return hubo;
+  if (xQueueReceive(colaOrdenes, &nueva, 0) != pdTRUE) return false;
+  nueva.instante = millis();
+  nueva.hay = true;
+  Serial.printf("Orden recibida: %s -> %s\n", nueva.tipo, nueva.valor);
+  orden = nueva;
+  return true;
+}
+
+void redPublicarEstado(const char *tipo, bool prendido) {
+  if (!conectado) return;  // al reconectar, loop() vuelve a publicar todos los estados
+  char topico[64];
+  snprintf(topico, sizeof topico, "%s/actuador/%s/estado", NODO_ID, tipo);
+  // Retenido: quien se conecta después ve el estado actual sin esperar al próximo cambio.
+  esp_mqtt_client_publish(cliente, topico, prendido ? "1" : "0", 0, QOS_ESTADO, 1);
 }
 
 EstadoRed redEstado() {

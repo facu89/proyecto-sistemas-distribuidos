@@ -27,3 +27,6 @@ software/broker/security/certs/*.key
 software/broker/security/certs/key.pem
 software/broker/security/certs/*.csr
 software/broker/security/certs/*.srl
+
+# Copia de la CA del broker que genera firmware/scripts/copiar_ca.py al compilar
+firmware/certs/
