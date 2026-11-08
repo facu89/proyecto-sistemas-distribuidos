@@ -90,17 +90,21 @@ ssh -p 22116 alumno@100.117.231.80
 |---|---|---|
 | El grupo (la web) | `tailscale serve`: HTTPS con certificado válido, **solo dentro de la red de Tailscale** | `https://bancal.taile538b8.ts.net` |
 | El ESP32 | `tailscale funnel`: **el único puerto público**, que pasa directo a EMQX | `bancal.taile538b8.ts.net:8443` |
-| Panel de EMQX | Túnel SSH, después abrir http://localhost:18083 | `ssh -L 18083:localhost:18083 -p 22116 alumno@100.117.231.80` |
+| Panel de EMQX | Túnel SSH, después abrir http://localhost:18083 | `ssh -L 18083:localhost:18084 -p 22116 alumno@100.117.231.80` |
 
-En el servidor, `compose.servidor.yaml` deja todos los puertos de compose en `127.0.0.1`:
+En el servidor, `compose.servidor.yaml` deja todos los puertos de compose en `127.0.0.1` y **con otros números**:
 
 | Puerto local | Qué | Quién llega |
 |---|---|---|
-| 8883 | MQTT con TLS | Funnel (`:8443`) |
-| 18083 | Panel de EMQX | Túnel SSH |
+| 8884 | MQTT con TLS (el 8883 de EMQX) | Funnel (`:8443`) |
+| 18084 | Panel de EMQX (el 18083) | Túnel SSH |
 | 8090 | Web y API del servicio | `serve` (`:443`) |
 
-El 8080 lo usa el cebador de la clase 14, por eso el servicio va en el 8090. 1883 y 8083, sin cifrar, no se publican. Ni las otras máquinas de la red de la facultad ni los reenvíos de `sd-2026` (`183NN`, `188NN`, `181NN`) llegan a nada nuestro.
+**¿Por qué otros números?** `sd-2026` reenvía sus puertos `183NN`, `188NN` y `181NN` a los 1883, 8883 y 18083 de cada nodo, y llega aunque el puerto esté atado a `127.0.0.1` (lo probamos: con el 8883 en `127.0.0.1`, el panel y el broker se veían desde `sd-2026:18116` y `:18816`). Seguramente los reenvíos se conectan desde adentro del contenedor. Con otros números esos reenvíos no encuentran nada, y nadie de la cátedra llega al broker ni al panel.
+
+- **El 8080** lo usa el cebador de la clase 14, por eso el servicio va en el 8090.
+- **1883 y 8083**, sin cifrar, no se publican.
+- **Las otras máquinas de la red de la facultad** tampoco llegan, porque todo está en `127.0.0.1`.
 
 > **Cuidado al probar:** no conectar clientes de prueba con los usuarios reales (`servicio`, `bancal1esp1`) mientras el ESP32 o el servicio estén conectados. EMQX desconecta al que tenía ese client ID, y los dos se pelean la conexión.
 
@@ -136,7 +140,7 @@ El script sube lo commiteado (HEAD) por SSH, sin usar GitHub, a `~/bancal` y cor
 
    ```bash
    tailscale serve --bg --https=443 http://127.0.0.1:8090
-   tailscale funnel --bg --tcp=8443 tcp://127.0.0.1:8883
+   tailscale funnel --bg --tcp=8443 tcp://127.0.0.1:8884
    tailscale serve status
    ```
 
@@ -150,7 +154,7 @@ A quien se le comparte llega a la máquina por Tailscale, pero nuestros puertos 
 
 ### Por qué el puerto público es seguro (y qué no cubre)
 
-Funnel publica **un solo puerto**, el 8443, y lo pasa tal cual al 8883 de EMQX:
+Funnel publica **un solo puerto**, el 8443, y lo pasa tal cual al puerto TLS de EMQX:
 
 - **Cifrado de punta a punta:** el TLS es el nuestro. Funnel pasa los bytes sin descifrarlos (modo TCP), así que ni Tailscale ve el contenido.
 - **Solo entra quien tiene usuario y clave:** EMQX los busca en MySQL y no acepta conexiones anónimas.
@@ -161,4 +165,4 @@ Lo que no cubre:
 
 - **Cualquiera puede intentar conectarse.** El nombre `bancal.taile538b8.ts.net` es público: queda en los registros de certificados. La defensa son las claves largas y aleatorias. Todas las conexiones llegan a EMQX desde la misma dirección local, así que no se puede bloquear por IP.
 - **Una falla del propio EMQX:** conviene mantener la imagen actualizada.
-- **Más seguro todavía** (pendiente): pedir certificado de cliente en el puerto 8883 (TLS mutuo). Así, sin un certificado firmado por nuestra CA, nadie llegaría ni a probar una clave.
+- **Más seguro todavía** (pendiente): pedir certificado de cliente en el puerto TLS (TLS mutuo). Así, sin un certificado firmado por nuestra CA, nadie llegaría ni a probar una clave.
