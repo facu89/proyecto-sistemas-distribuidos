@@ -88,17 +88,17 @@ ssh -p 22116 alumno@100.117.231.80
 
 | Quién | Cómo | Dirección |
 |---|---|---|
-| El grupo (la web) | `tailscale serve`: HTTPS con certificado válido, **solo dentro de la red de Tailscale** | `https://bancal.taile538b8.ts.net` |
-| El ESP32 | `tailscale funnel`: **el único puerto público**, que pasa directo a EMQX | `bancal.taile538b8.ts.net:8443` |
+| El grupo (la web) | `tailscale serve`: HTTPS con certificado válido, **solo dentro de la red de Tailscale** | `https://bancal.taile538b8.ts.net:8443` |
+| El ESP32 | `tailscale funnel`: **el único puerto público**, que pasa directo a EMQX | `bancal.taile538b8.ts.net:443` |
 | Panel de EMQX | Túnel SSH, después abrir http://localhost:18083 | `ssh -L 18083:localhost:18084 -p 22116 alumno@100.117.231.80` |
 
 En el servidor, `compose.servidor.yaml` deja todos los puertos de compose en `127.0.0.1` y **con otros números**:
 
 | Puerto local | Qué | Quién llega |
 |---|---|---|
-| 8884 | MQTT con TLS (el 8883 de EMQX) | Funnel (`:8443`) |
+| 8884 | MQTT con TLS (el 8883 de EMQX) | Funnel (`:443`) |
 | 18084 | Panel de EMQX (el 18083) | Túnel SSH |
-| 8090 | Web y API del servicio | `serve` (`:443`) |
+| 8090 | Web y API del servicio | `serve` (`:8443`) |
 
 **¿Por qué otros números?** `sd-2026` reenvía sus puertos `183NN`, `188NN` y `181NN` a los 1883, 8883 y 18083 de cada nodo, y llega aunque el puerto esté atado a `127.0.0.1` (lo probamos: con el 8883 en `127.0.0.1`, el panel y el broker se veían desde `sd-2026:18116` y `:18816`). Seguramente los reenvíos se conectan desde adentro del contenedor. Con otros números esos reenvíos no encuentran nada, y nadie de la cátedra llega al broker ni al panel.
 
@@ -139,33 +139,35 @@ El script sube lo commiteado (HEAD) por SSH, sin usar GitHub, a `~/bancal` y cor
 4. **Publicar con Tailscale** (en `alumno16`). La primera vez, cada comando responde con un link para habilitar Serve y Funnel en la red: abrirlo con la cuenta dueña y volver a correrlo.
 
    ```bash
-   tailscale serve --bg --yes --https=443 http://127.0.0.1:8090
-   tailscale funnel --bg --yes --tcp=8443 tcp://127.0.0.1:8884
+   tailscale funnel --bg --yes --tcp=443 tcp://127.0.0.1:8884
+   tailscale serve --bg --yes --https=8443 http://127.0.0.1:8090
    tailscale serve status
    ```
+
+   **¿Por qué el ESP32 va por el 443 y la web por el 8443?** Funnel solo publica en 443, 8443 o 10000, y la WiFi de la facultad ("Alumnos 2G") solo deja salir por 80 y 443. Con el 8443, el ESP32 se quedaba esperando la conexión (`esp-tls: select() timeout`, `tls=32774`). La web no tiene ese problema: va dentro del túnel de Tailscale, que el firewall no ve, así que cualquier puerto le sirve.
 
    La configuración queda guardada: sobrevive a reinicios de la máquina y de Tailscale. El nombre público (`bancal.taile538b8.ts.net` en el DNS de internet) tardó unos 4 minutos en aparecer la primera vez.
 
    Para comprobar desde cualquier máquina que el ESP32 va a poder conectarse (tiene que decir `Verify return code: 0 (ok)`):
 
    ```bash
-   openssl s_client -connect bancal.taile538b8.ts.net:8443 -verify_hostname bancal.taile538b8.ts.net \
+   openssl s_client -connect bancal.taile538b8.ts.net:443 -verify_hostname bancal.taile538b8.ts.net \
      -CAfile firmware/certs/ca.pem </dev/null | grep "Verify return code"
    ```
 
    La IP pública de Funnel es compartida entre muchas máquinas de Tailscale, y la conexión llega a la nuestra por el nombre que manda el cliente en el saludo TLS (SNI). Un cliente que se conecte por IP no llega. El ESP32 manda el nombre solo, porque se conecta con `hostname`.
 
-5. **ESP32:** en `firmware/include/config.h`, `MQTT_HOST = "bancal.taile538b8.ts.net"`, `MQTT_PORT = 8443` y la clave nueva del ESP en `MQTT_PASS`. Compilar y grabar.
+5. **ESP32:** en `firmware/include/config.h`, `MQTT_HOST = "bancal.taile538b8.ts.net"`, `MQTT_PORT = 443` y la clave nueva del ESP en `MQTT_PASS` (está en `secrets/.env` del servidor). Compilar y grabar.
 
 ### Compartir la web con el grupo
 
-En la [consola de Tailscale](https://login.tailscale.com/admin/machines): máquina `bancal` → `⋯` → **Share** → invitar por mail o con un link. Cada uno acepta con su propia cuenta de Tailscale y `bancal` le aparece en su red, igual que `sd-2026`. Después entra a `https://bancal.taile538b8.ts.net` desde cualquier red.
+En la [consola de Tailscale](https://login.tailscale.com/admin/machines): máquina `bancal` → `⋯` → **Share** → invitar por mail o con un link. Cada uno acepta con su propia cuenta de Tailscale y `bancal` le aparece en su red, igual que `sd-2026`. Después entra a `https://bancal.taile538b8.ts.net:8443` desde cualquier red.
 
 A quien se le comparte llega a la máquina por Tailscale, pero nuestros puertos están en `127.0.0.1`. Desde ahí solo ve la web (`serve`) y lo que ya escuchaba en todas las interfaces: el SSH y el cebador. La web no tiene login, así que quien la abre puede pasar a manual y manejar los actuadores: compartirla solo con el grupo. Para quitarle el acceso a alguien, en el mismo menú: **Share** → revocar.
 
 ### Por qué el puerto público es seguro (y qué no cubre)
 
-Funnel publica **un solo puerto**, el 8443, y lo pasa tal cual al puerto TLS de EMQX:
+Funnel publica **un solo puerto**, el 443, y lo pasa tal cual al puerto TLS de EMQX:
 
 - **Cifrado de punta a punta:** el TLS es el nuestro. Funnel pasa los bytes sin descifrarlos (modo TCP), así que ni Tailscale ve el contenido.
 - **Solo entra quien tiene usuario y clave:** EMQX los busca en MySQL y no acepta conexiones anónimas.

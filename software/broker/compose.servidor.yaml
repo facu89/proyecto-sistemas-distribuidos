@@ -3,8 +3,9 @@
 #
 # En el servidor nada escucha hacia afuera: todos los puertos quedan en 127.0.0.1 y Tailscale, que corre
 # en la misma máquina, es lo único que los alcanza (ver README.md, "Servidor"):
-#   - tailscale serve  :443  -> 127.0.0.1:8090    la web, solo para quien esté en la red de Tailscale
-#   - tailscale funnel :8443 -> 127.0.0.1:8884    MQTT con TLS, público, para el ESP32
+#   - tailscale funnel :443  -> 127.0.0.1:8884    MQTT con TLS, público, para el ESP32
+#   - tailscale serve  :8443 -> 127.0.0.1:8090    la web, solo para quien esté en la red de Tailscale
+# El ESP32 va por el 443 porque la WiFi de la facultad ("Alumnos 2G") solo deja salir por 80 y 443.
 #
 # Ojo: los puertos locales NO son los de siempre (8883, 18083). sd-2026 reenvía sus puertos 183NN, 188NN y
 # 181NN a 1883, 8883 y 18083 de cada nodo y esos reenvíos se conectan desde adentro de la máquina, así que
