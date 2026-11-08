@@ -2,7 +2,7 @@
  * Conexión del servicio con el broker: MQTT sobre TLS, con el usuario `servicio`.
  *
  * Lo que puede hacer lo limita la ACL de software/broker (02-init-users.sh): leer `+/sensor/+`,
- * `+/actuador/+/estado` y `+/presencia`, y publicar en `+/actuador/+/cmd`.
+ * `+/actuador/+/estado`, `+/presencia` y `alertas/#`, y publicar en `+/actuador/+/cmd`.
  */
 import fs from 'node:fs'
 import mqtt from 'mqtt'
@@ -10,7 +10,13 @@ import type { Config } from './config.ts'
 import type { Actuador } from './reglas.ts'
 
 /** Ver la tabla de software/broker/topics.md. */
-const SUSCRIPCIONES = { '+/sensor/+': { qos: 0 }, '+/actuador/+/estado': { qos: 1 }, '+/presencia': { qos: 1 } } as const
+const SUSCRIPCIONES = {
+  '+/sensor/+': { qos: 0 },
+  '+/actuador/+/estado': { qos: 1 },
+  '+/presencia': { qos: 1 },
+  // Las publica el motor de reglas de EMQX (config/emqx.conf), retenidas.
+  'alertas/#': { qos: 1 },
+} as const
 const QOS_ORDENES = 1
 const RECONEXION_MS = 5000
 

@@ -102,6 +102,8 @@ La forma del JSON es el tipo `Instantanea` de `src/bancal.ts`. La web lo importa
 - la última lectura de cada sensor;
 - por actuador, `ordenado` (lo último que mandó el servicio) y `real` (lo que informó el ESP32 en `/estado`). La web marca "pendiente" mientras no coinciden.
 
+Además, fuera de los nodos, trae `alertas`: las de `alertas/#` (las publica el motor de reglas de EMQX), por tópico sin el `alertas/` inicial (`nodo_offline/bancal1esp1`, `servicio`), cada una con `activa`, `desde` y el resto del JSON en `datos`. Ver [`topics.md`](../broker/topics.md#5-alertas).
+
 ### Seguridad de los `POST`
 
 Manejan actuadores reales, así que el servicio solo los acepta:

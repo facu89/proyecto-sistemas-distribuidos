@@ -66,7 +66,8 @@ EMQX hace un HTTP POST por cada mensaje o evento que elijamos. Sirve cuando del 
 - [ ] **Eventos del broker** (cliente conectado o desconectado, autenticación fallida) hacia un sistema de monitoreo o auditoría.
 
 ### Servicio y alertas
-- [ ] Definir los tipos de alerta (`alertas/{tipoAlerta}`) y si van retenidos (está abierto en `topics.md`). Que el servicio las publique y se las pase a la web.
+- [x] Alertas `alertas/nodo_offline/{nodoId}` y `alertas/servicio` (retenidas, las publica el motor de reglas de EMQX). El servicio se suscribe a `alertas/#` y se las pasa a la web en la instantánea.
+- [ ] Mostrar las alertas en la web (hoy llegan por SSE pero el panel no las dibuja).
 - [x] Modo automático / manual desde la web: en manual, los interruptores del panel le piden la orden al servicio (ver [README del servicio](software/servicio/README.md#modo-automático--manual)).
 - [ ] **Modificar los rangos desde la web:** editar en el panel los umbrales del riego (20 % / 70 %) y del cooler (28 °C / 26 °C). Hoy solo se cambian en `software/servicio/.env` y reiniciando el servicio. Habría que validarlos y guardarlos (por ejemplo, en un JSON o en MySQL) para que sobrevivan a un reinicio.
 - [ ] Guardar el modo de cada nodo: hoy vive en memoria y al reiniciar el servicio todos vuelven a automático.

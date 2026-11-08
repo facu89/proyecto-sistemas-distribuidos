@@ -173,3 +173,28 @@ describe('modo manual / automático', () => {
     assert.deepEqual(publicadas, ['bancal1esp1/actuador/luz/cmd=1'])
   })
 })
+
+describe('alertas', () => {
+  it('guarda la alerta por tópico y separa activa y desde del resto de los datos', () => {
+    bancales.alMensaje('alertas/nodo_offline/bancal1esp1', '{"nodo": "bancal1esp1", "activa": true, "desde": 1700000000000}')
+    assert.deepEqual(bancales.instantanea().alertas, {
+      'nodo_offline/bancal1esp1': { activa: true, desde: 1700000000000, datos: { nodo: 'bancal1esp1' } },
+    })
+    // No crea un nodo llamado "alertas"
+    assert.deepEqual(bancales.instantanea().nodos, {})
+  })
+
+  it('una alerta resuelta reemplaza a la activa y un payload vacío la borra', () => {
+    bancales.alMensaje('alertas/servicio', '{"activa": true, "motivo": "se detuvo", "desde": 1}')
+    bancales.alMensaje('alertas/servicio', '{"activa": false, "motivo": "volvió a conectarse", "desde": 2}')
+    assert.equal(bancales.instantanea().alertas.servicio.activa, false)
+    bancales.alMensaje('alertas/servicio', '')
+    assert.deepEqual(bancales.instantanea().alertas, {})
+  })
+
+  it('ignora payloads que no son JSON o no traen "activa"', () => {
+    bancales.alMensaje('alertas/servicio', 'hola')
+    bancales.alMensaje('alertas/servicio', '{"motivo": "x"}')
+    assert.deepEqual(bancales.instantanea().alertas, {})
+  })
+})

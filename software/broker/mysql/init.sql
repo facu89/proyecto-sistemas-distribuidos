@@ -31,7 +31,8 @@ INSERT IGNORE INTO mqtt_acl (username, permission, action, topic) VALUES
 INSERT IGNORE INTO mqtt_acl (username, permission, action, topic) VALUES
   ('cliente_web', 'allow', 'subscribe', '+/sensor/+'),
   ('cliente_web', 'allow', 'subscribe', '+/actuador/+/estado'),
-  ('cliente_web', 'allow', 'subscribe', '+/presencia');
+  ('cliente_web', 'allow', 'subscribe', '+/presencia'),
+  ('cliente_web', 'allow', 'subscribe', 'alertas/#');
 
 -- Regla de administrador (acceso total a todos los tópicos)
 INSERT IGNORE INTO mqtt_acl (username, permission, action, topic) VALUES
