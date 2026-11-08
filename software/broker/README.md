@@ -48,7 +48,7 @@ docker compose up -d
 
 ## TLS: certificados
 
-Con `compose up`, el contenedor `certs` corre `security/preparar_certificados.sh`, que regenera el certificado del broker solo si no existe, no lo firmó la CA actual, no coincide con su clave, vence en menos de 30 días o no incluye alguna IP de `BROKER_IP`. Desde adentro de un contenedor no se pueden ver las IPs de la máquina, por eso `BROKER_IP` va en `secrets/.env`.
+Con `compose up`, el contenedor `certs` corre `security/preparar_certificados.sh`, que regenera el certificado del broker solo si no existe, no lo firmó la CA actual, no coincide con su clave, vence en menos de 30 días o no incluye alguna IP de `BROKER_IP` o algún nombre de `BROKER_DNS`. Desde adentro de un contenedor no se pueden ver las IPs de la máquina, por eso `BROKER_IP` va en `secrets/.env`. `BROKER_DNS` hace falta cuando el ESP32 se conecta por nombre, como en el [servidor](#servidor).
 
 **Los certificados no están en git** (`security/certs/*.pem` está en `.gitignore`): cada máquina genera los suyos y tiene su propia CA. Así nadie pisa los del otro.
 
@@ -59,7 +59,7 @@ Con `compose up`, el contenedor `certs` corre `security/preparar_certificados.sh
 Los certificados los genera `security/generar_certificados.sh`:
 
 - **CA** (`certs/ca.pem` y `certs/ca.key`): se crea solo si no existe. El firmware embebe `ca.pem` (la copia al compilar `firmware/scripts/copiar_ca.py`) y el servicio la usa para verificar al broker. Ninguno de los dos archivos se sube a git.
-- **Certificado del broker** (`certs/broker.pem` y `certs/broker.key`): firmado por la CA. Su SAN incluye `localhost`, `emqx`, `127.0.0.1` y las IPs de la máquina. Sin argumentos, el script las detecta solo (`security/ips_locales.sh`); también se le pueden pasar a mano: `./generar_certificados.sh 192.168.1.50`.
+- **Certificado del broker** (`certs/broker.pem` y `certs/broker.key`): firmado por la CA. Su SAN incluye `localhost`, `emqx`, `127.0.0.1` y las IPs de la máquina. Sin argumentos, el script las detecta solo (`security/ips_locales.sh`); también se le pueden pasar a mano IPs y nombres: `./generar_certificados.sh 192.168.1.50 bancal.taile538b8.ts.net`.
 
 Si se regenera solo el certificado del broker, `ca.pem` no cambia y el firmware ya grabado sigue sirviendo. Para hacer una CA nueva hay que borrar `certs/ca.pem` y `certs/ca.key`, y después recompilar y grabar el ESP32.
 
@@ -75,3 +75,90 @@ El ESP32 verifica que la IP a la que se conecta (`MQTT_HOST`) figure en el certi
 Para que la IP no cambie, conviene reservarla en el router (DHCP estático) para la máquina del broker.
 
 El certificado del broker dura 365 días; la CA, 10 años. Para renovar el del broker alcanza con volver a correr el script.
+
+## Servidor
+
+Todo corre en `alumno16`, el nodo de la cátedra en `sd-2026`. Es un contenedor Debian con Docker, sin puertos abiertos a internet. Se entra por SSH a través de `sd-2026`, la máquina del profe compartida a nuestra red de Tailscale:
+
+```bash
+ssh -p 22116 alumno@100.117.231.80
+```
+
+`alumno16` tiene su propio Tailscale, en la red de Guido (`taile538b8.ts.net`), con el nombre **`bancal`**. Así se llega a cada cosa:
+
+| Quién | Cómo | Dirección |
+|---|---|---|
+| El grupo (la web) | `tailscale serve`: HTTPS con certificado válido, **solo dentro de la red de Tailscale** | `https://bancal.taile538b8.ts.net` |
+| El ESP32 | `tailscale funnel`: **el único puerto público**, que pasa directo a EMQX | `bancal.taile538b8.ts.net:8443` |
+| Panel de EMQX | Túnel SSH, después abrir http://localhost:18083 | `ssh -L 18083:localhost:18083 -p 22116 alumno@100.117.231.80` |
+
+En el servidor, `compose.servidor.yaml` deja todos los puertos de compose en `127.0.0.1`:
+
+| Puerto local | Qué | Quién llega |
+|---|---|---|
+| 8883 | MQTT con TLS | Funnel (`:8443`) |
+| 18083 | Panel de EMQX | Túnel SSH |
+| 8090 | Web y API del servicio | `serve` (`:443`) |
+
+El 8080 lo usa el cebador de la clase 14, por eso el servicio va en el 8090. 1883 y 8083, sin cifrar, no se publican. Ni las otras máquinas de la red de la facultad ni los reenvíos de `sd-2026` (`183NN`, `188NN`, `181NN`) llegan a nada nuestro.
+
+> **Cuidado al probar:** no conectar clientes de prueba con los usuarios reales (`servicio`, `bancal1esp1`) mientras el ESP32 o el servicio estén conectados. EMQX desconecta al que tenía ese client ID, y los dos se pelean la conexión.
+
+### Actualizar
+
+Desde la máquina de cada uno, con los cambios commiteados:
+
+```bash
+software/broker/desplegar.sh
+```
+
+El script sube lo commiteado (HEAD) por SSH, sin usar GitHub, a `~/bancal` y corre `docker compose -f compose.yaml -f compose.servidor.yaml up -d --build`. Conserva `secrets/.env` y los certificados del servidor, y deja la versión anterior en `~/bancal.anterior`.
+
+### Primera vez
+
+1. **Tailscale en el servidor** (en `alumno16`):
+
+   ```bash
+   curl -fsSL https://tailscale.com/install.sh | sh
+   sudo tailscale up --hostname=bancal --accept-dns=false
+   sudo tailscale set --operator=alumno   # para manejar serve y funnel sin sudo
+   ```
+
+   `tailscale up` muestra un link: abrirlo con la cuenta dueña de la red. `--accept-dns=false` deja el DNS del servidor como está, porque no necesita los nombres de la red de Tailscale.
+
+2. **`secrets/.env` del servidor** (`~/bancal/software/broker/secrets/.env`): copiar `secrets.example/.env` con **claves nuevas y largas** (`openssl rand -base64 24`). El puerto MQTT es público, así que la clave es lo único que separa a un desconocido del broker. Además:
+   - `BROKER_DNS=bancal.taile538b8.ts.net`;
+   - `BROKER_IP` vacía.
+
+3. **Subir y levantar:** `software/broker/desplegar.sh`. La primera vez copia la CA local (`ca.key` y `firmware/certs/ca.pem`), así el ESP32 confía en este broker con la misma CA.
+
+4. **Publicar con Tailscale** (en `alumno16`; la primera vez, Tailscale pide activar HTTPS y Funnel en la red con un link):
+
+   ```bash
+   tailscale serve --bg --https=443 http://127.0.0.1:8090
+   tailscale funnel --bg --tcp=8443 tcp://127.0.0.1:8883
+   tailscale serve status
+   ```
+
+5. **ESP32:** en `firmware/include/config.h`, `MQTT_HOST = "bancal.taile538b8.ts.net"`, `MQTT_PORT = 8443` y la clave nueva del ESP en `MQTT_PASS`. Compilar y grabar.
+
+### Compartir la web con el grupo
+
+En la [consola de Tailscale](https://login.tailscale.com/admin/machines): máquina `bancal` → `⋯` → **Share** → invitar por mail o con un link. Cada uno acepta con su propia cuenta de Tailscale y `bancal` le aparece en su red, igual que `sd-2026`. Después entra a `https://bancal.taile538b8.ts.net` desde cualquier red.
+
+A quien se le comparte llega a la máquina por Tailscale, pero nuestros puertos están en `127.0.0.1`. Desde ahí solo ve la web (`serve`) y lo que ya escuchaba en todas las interfaces: el SSH y el cebador. La web no tiene login, así que quien la abre puede pasar a manual y manejar los actuadores: compartirla solo con el grupo. Para quitarle el acceso a alguien, en el mismo menú: **Share** → revocar.
+
+### Por qué el puerto público es seguro (y qué no cubre)
+
+Funnel publica **un solo puerto**, el 8443, y lo pasa tal cual al 8883 de EMQX:
+
+- **Cifrado de punta a punta:** el TLS es el nuestro. Funnel pasa los bytes sin descifrarlos (modo TCP), así que ni Tailscale ve el contenido.
+- **Solo entra quien tiene usuario y clave:** EMQX los busca en MySQL y no acepta conexiones anónimas.
+- **Cada usuario está limitado a sus tópicos:** la ACL deniega todo lo que no figure (`no_match = deny`). El ESP32 no puede, por ejemplo, publicar como el servicio.
+- **Nada más está expuesto:** ni la web ni el panel de EMQX, MySQL o SSH.
+
+Lo que no cubre:
+
+- **Cualquiera puede intentar conectarse.** El nombre `bancal.taile538b8.ts.net` es público: queda en los registros de certificados. La defensa son las claves largas y aleatorias. Todas las conexiones llegan a EMQX desde la misma dirección local, así que no se puede bloquear por IP.
+- **Una falla del propio EMQX:** conviene mantener la imagen actualizada.
+- **Más seguro todavía** (pendiente): pedir certificado de cliente en el puerto 8883 (TLS mutuo). Así, sin un certificado firmado por nuestra CA, nadie llegaría ni a probar una clave.

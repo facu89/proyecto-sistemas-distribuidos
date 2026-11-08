@@ -5,13 +5,16 @@
 #   - no lo firmó la CA actual (ca.pem);
 #   - no coincide con su clave privada (broker.key);
 #   - vence en menos de 30 días;
-#   - no incluye alguna de las IPs de BROKER_IP (secrets/.env).
+#   - no incluye alguna de las IPs de BROKER_IP o de los nombres de BROKER_DNS (secrets/.env).
 # Si está todo bien, no toca nada.
 #
 # BROKER_IP es la IP de la máquina del broker en la red del ESP32 (la misma que MQTT_HOST en
 # firmware/include/config.h). Desde adentro del contenedor no se puede averiguar, por eso va en .env.
 # Se pueden poner varias separadas por coma. Si está vacía, el certificado sirve solo para el servicio
 # (que se conecta por el nombre "emqx") y para localhost.
+#
+# BROKER_DNS son nombres con los que el ESP32 llega al broker (por ejemplo bancal.taile538b8.ts.net en el
+# servidor, ver README.md "Servidor"). También separados por coma; vacía si se usa solo por IP.
 
 set -e
 
@@ -20,6 +23,7 @@ C="$AQUI/certs"
 cd "$C"
 
 read -r -a IPS <<< "$(echo "${BROKER_IP:-}" | tr ',;' '  ')"
+read -r -a NOMBRES <<< "$(echo "${BROKER_DNS:-}" | tr ',;' '  ')"
 
 clave_publica_cert() { openssl x509 -in "$1" -noout -pubkey 2>/dev/null; }
 clave_publica_key()  { openssl pkey -in "$1" -pubout 2>/dev/null; }
@@ -49,13 +53,16 @@ else
     for ip in "${IPS[@]}"; do
         grep -qE "IP Address:${ip//./\\.}(,|$)" <<< "$san" || faltan+=("$ip")
     done
+    for nombre in "${NOMBRES[@]}"; do
+        grep -qE "DNS:${nombre//./\\.}(,|$)" <<< "$san" || faltan+=("$nombre")
+    done
     if [ "${#faltan[@]}" -gt 0 ]; then
         motivo="no incluye ${faltan[*]}"
     fi
 fi
 
 if [ -z "$motivo" ]; then
-    echo "==> El certificado del broker está bien (IPs: ${IPS[*]:-ninguna}). No se cambia nada."
+    echo "==> El certificado del broker está bien (IPs: ${IPS[*]:-ninguna}; nombres: ${NOMBRES[*]:-ninguno}). No se cambia nada."
     exit 0
 fi
 echo "==> El certificado del broker $motivo: se regenera"
@@ -74,7 +81,7 @@ if [ ! -f ca.key ]; then
     echo "    El ESP32 tiene que recompilarse y grabarse para que confíe en ella."
 fi
 
-"$AQUI/generar_certificados.sh" "${IPS[@]}"
+"$AQUI/generar_certificados.sh" "${IPS[@]}" "${NOMBRES[@]}"
 
 # EMQX corre con su propio usuario y tiene que poder leer la clave (en Linux el archivo queda del root
 # del contenedor). ca.key no la lee nadie más que este contenedor, así que esa se deja privada.

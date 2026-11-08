@@ -178,6 +178,7 @@ Se cambió el enfoque: la web **no se conecta al broker**. El servicio ([`softwa
 - [ ] Selector de bancal en la interfaz, cuando haya más de un nodo
 - [x] **Modo automático / manual** en el panel de actuadores. En manual los interruptores le piden la orden al servicio (`POST`) y las reglas no actúan hasta volver a automático. Al volver se aplican las reglas con las últimas lecturas. El botón muestra la etiqueta "Manual".
 - [ ] **Modificar los rangos desde la web:** editar los umbrales de riego y del cooler en el panel (`POST` al servicio). Habría que validar que el de apagar quede del lado correcto del de prender y guardarlos para que no se pierdan al reiniciar el servicio.
+- [ ] **Dashboard del historial:** gráficos por sensor con lo que guarda la regla `guardar_historial` de EMQX en la tabla `historial_lecturas` de MySQL (una lectura por sensor cada 10 min, hasta 14 días). El servicio consultaría MySQL con un usuario de solo lectura y lo expondría en algo como `GET /api/historial?nodo=&tipo=&desde=`; la web lo mostraría en una vista aparte, con selector de rango (24 h, 7 días, 14 días) y las bandas de las reglas marcadas.
 
 Lo que queda del sistema completo (firmware, broker, servicio) está en [Pendientes del README principal](../README.md#pendientes).
 

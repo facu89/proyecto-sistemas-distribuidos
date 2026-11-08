@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Script para generar la Autoridad Certificadora (CA) y el certificado del broker con soporte SAN (Subject Alternative Name).
 # Uso:
-#   ./generar_certificados.sh              # usa las IPs actuales de esta máquina (ips_locales.sh)
-#   ./generar_certificados.sh IP [IP ...]  # o las que se le pasen
+#   ./generar_certificados.sh                      # usa las IPs actuales de esta máquina (ips_locales.sh)
+#   ./generar_certificados.sh IP|NOMBRE [...]      # o las IPs y nombres que se le pasen
 # Ejemplo:
-#   ./generar_certificados.sh 192.168.1.50 10.15.0.39
+#   ./generar_certificados.sh 192.168.1.50 10.15.0.39 bancal.taile538b8.ts.net
 #
-# El ESP32 verifica que la IP a la que se conecta (MQTT_HOST en firmware/include/config.h) figure en el
-# certificado. Si la máquina del broker cambia de red o de IP hay que regenerarlo y reiniciar EMQX:
+# El ESP32 verifica que la IP o el nombre al que se conecta (MQTT_HOST en firmware/include/config.h)
+# figure en el certificado. Si la máquina del broker cambia de red o de IP hay que regenerarlo y reiniciar EMQX:
 # ../levantar.sh lo hace solo.
 #
 # Si la CA ya existe (certs/ca.pem y certs/ca.key) se reutiliza y solo se regenera el certificado del
@@ -32,8 +32,13 @@ if [ "$#" -eq 0 ] && [ -f "$AQUI/ips_locales.sh" ]; then
     fi
 fi
 SAN="DNS:localhost,DNS:emqx,IP:127.0.0.1"
-for ip in "$@"; do
-    SAN="$SAN,IP:$ip"
+for host in "$@"; do
+    # IPv4 (solo dígitos y puntos) o IPv6 (lleva ":") va como IP; lo demás es un nombre (DNS)
+    if [[ "$host" =~ ^[0-9.]+$ || "$host" == *:* ]]; then
+        SAN="$SAN,IP:$host"
+    else
+        SAN="$SAN,DNS:$host"
+    fi
 done
 
 echo "==> Generando certificados en: $DIR"

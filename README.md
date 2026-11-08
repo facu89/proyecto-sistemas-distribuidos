@@ -52,11 +52,12 @@ Las aplica el servicio ([`software/servicio/src/reglas.ts`](software/servicio/sr
 
 ### Broker y seguridad
 - [ ] Cerrar los puertos sin cifrar (1883 y 8083) cuando todos los clientes usen TLS.
-- [ ] Servir la web por HTTPS si se va a abrir desde otros equipos: un certificado para el servicio firmado por la misma CA, que cada navegador tendría que tener instalada.
+- [ ] **Servidor accesible desde cualquier red** (`alumno16`, en curso): la web por HTTPS solo para el grupo (`tailscale serve`) y el ESP32 por un único puerto público (`tailscale funnel`). Ver [Servidor](software/broker/README.md#servidor).
+- [ ] TLS mutuo en el puerto MQTT: que el ESP32 y el servicio presenten un certificado de cliente firmado por nuestra CA. Así el puerto público no aceptaría ni un intento de clave sin certificado.
 
 ### Motor de reglas de EMQX (*Rule Engine*)
 Son consultas tipo SQL sobre los mensajes, con acciones: republicar, escribir en una base o llamar a un webhook. No reemplazan las reglas del servicio, porque la histéresis necesita recordar el estado anterior y el motor evalúa cada mensaje por separado. Sirven para:
-- [ ] **Historial:** guardar cada lectura en MySQL (`SELECT ... FROM "+/sensor/+"` hacia una tabla de lecturas), sin pasar por el servicio. Después la web podría mostrar gráficos.
+- [x] **Historial:** la regla `guardar_historial` guarda en MySQL (`historial_lecturas`) una lectura por sensor cada 10 minutos, hasta 14 días, sin pasar por el servicio. Falta mostrarlo: ver "Dashboard del historial" más abajo.
 - [ ] **Filtrar en el broker** lecturas inválidas (`nan` o fuera de rango) antes de que lleguen a los suscriptores.
 - [ ] **Alertas simples** sin estado, por ejemplo republicar en `alertas/nodo_offline` cuando llega `offline` en `+/presencia`.
 
@@ -69,6 +70,7 @@ EMQX hace un HTTP POST por cada mensaje o evento que elijamos. Sirve cuando del 
 - [ ] Definir los tipos de alerta (`alertas/{tipoAlerta}`) y si van retenidos (está abierto en `topics.md`). Que el servicio las publique y se las pase a la web.
 - [x] Modo automático / manual desde la web: en manual, los interruptores del panel le piden la orden al servicio (ver [README del servicio](software/servicio/README.md#modo-automático--manual)).
 - [ ] **Modificar los rangos desde la web:** editar en el panel los umbrales del riego (20 % / 70 %) y del cooler (28 °C / 26 °C). Hoy solo se cambian en `software/servicio/.env` y reiniciando el servicio. Habría que validarlos y guardarlos (por ejemplo, en un JSON o en MySQL) para que sobrevivan a un reinicio.
+- [ ] **Dashboard del historial:** gráficos por sensor con los datos de `historial_lecturas`. El servicio los consultaría en MySQL (usuario de solo lectura) y los serviría por HTTP; la web los mostraría en una vista aparte (ver [PLAN de la web](diseño_pagina_web/PLAN.md), Fase 6).
 - [ ] Guardar el modo de cada nodo: hoy vive en memoria y al reiniciar el servicio todos vuelven a automático.
 - [ ] **Usuarios en la web:** hoy cualquiera que pueda abrirla puede cambiar el modo y manejar los actuadores. Hace falta antes de abrir el servicio a la red (`HTTP_HOST=0.0.0.0`).
 - [ ] Varios bancales: selector de nodo en la web (hoy se elige con `?nodo=`) y un usuario MQTT por ESP32.
