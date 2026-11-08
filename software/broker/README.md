@@ -136,13 +136,24 @@ El script sube lo commiteado (HEAD) por SSH, sin usar GitHub, a `~/bancal` y cor
 
 3. **Subir y levantar:** `software/broker/desplegar.sh`. La primera vez copia la CA local (`ca.key` y `firmware/certs/ca.pem`), así el ESP32 confía en este broker con la misma CA.
 
-4. **Publicar con Tailscale** (en `alumno16`; la primera vez, Tailscale pide activar HTTPS y Funnel en la red con un link):
+4. **Publicar con Tailscale** (en `alumno16`). La primera vez, cada comando responde con un link para habilitar Serve y Funnel en la red: abrirlo con la cuenta dueña y volver a correrlo.
 
    ```bash
-   tailscale serve --bg --https=443 http://127.0.0.1:8090
-   tailscale funnel --bg --tcp=8443 tcp://127.0.0.1:8884
+   tailscale serve --bg --yes --https=443 http://127.0.0.1:8090
+   tailscale funnel --bg --yes --tcp=8443 tcp://127.0.0.1:8884
    tailscale serve status
    ```
+
+   La configuración queda guardada: sobrevive a reinicios de la máquina y de Tailscale. El nombre público (`bancal.taile538b8.ts.net` en el DNS de internet) tardó unos 4 minutos en aparecer la primera vez.
+
+   Para comprobar desde cualquier máquina que el ESP32 va a poder conectarse (tiene que decir `Verify return code: 0 (ok)`):
+
+   ```bash
+   openssl s_client -connect bancal.taile538b8.ts.net:8443 -verify_hostname bancal.taile538b8.ts.net \
+     -CAfile firmware/certs/ca.pem </dev/null | grep "Verify return code"
+   ```
+
+   La IP pública de Funnel es compartida entre muchas máquinas de Tailscale, y la conexión llega a la nuestra por el nombre que manda el cliente en el saludo TLS (SNI). Un cliente que se conecte por IP no llega. El ESP32 manda el nombre solo, porque se conecta con `hostname`.
 
 5. **ESP32:** en `firmware/include/config.h`, `MQTT_HOST = "bancal.taile538b8.ts.net"`, `MQTT_PORT = 8443` y la clave nueva del ESP en `MQTT_PASS`. Compilar y grabar.
 

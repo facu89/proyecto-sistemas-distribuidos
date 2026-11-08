@@ -52,7 +52,7 @@ Las aplica el servicio ([`software/servicio/src/reglas.ts`](software/servicio/sr
 
 ### Broker y seguridad
 - [ ] Cerrar los puertos sin cifrar (1883 y 8083) cuando todos los clientes usen TLS.
-- [ ] **Servidor accesible desde cualquier red** (`alumno16`, en curso): la web por HTTPS solo para el grupo (`tailscale serve`) y el ESP32 por un único puerto público (`tailscale funnel`). Ver [Servidor](software/broker/README.md#servidor).
+- [x] **Servidor accesible desde cualquier red** (`alumno16`): la web por HTTPS solo para el grupo (`tailscale serve`) y el ESP32 por un único puerto público (`tailscale funnel`). Ver [Servidor](software/broker/README.md#servidor).
 - [ ] TLS mutuo en el puerto MQTT: que el ESP32 y el servicio presenten un certificado de cliente firmado por nuestra CA. Así el puerto público no aceptaría ni un intento de clave sin certificado.
 
 ### Motor de reglas de EMQX (*Rule Engine*)
