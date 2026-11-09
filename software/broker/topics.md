@@ -4,12 +4,14 @@ Todos los tópicos van en minúscula (MQTT distingue mayúsculas: `Actuador` y `
 Lo que está entre llaves `{}` es una parte variable del tópico; el resto es fijo.
 
 - `{nodoId}` identifica al nodo. Hay un solo ESP32 por bancal, así que el nodo es el bancal junto con su ESP32. Es **un solo nivel** del tópico. Ejemplo: `bancal1esp1`.
+- `alertas` está reservado: no puede usarse como `{nodoId}`, porque es la raíz de las alertas.
 - `{tipo}` es el nombre del componente (`riego`, `luz`, `temperatura`, `humedad`...). Es un solo nivel, así que hay un solo componente de cada tipo por nodo. Ejemplo: `riego`.
 
 Participantes:
 
 - **ESP32:** lee los sensores y maneja los actuadores de su nodo.
-- **Servicio** ([`software/servicio`](../servicio/README.md)): recibe las lecturas, decide cuándo actuar y genera las alertas.
+- **Servicio** ([`software/servicio`](../servicio/README.md)): recibe las lecturas, decide cuándo actuar y le pasa todo (también las alertas) a la web.
+- **Motor de reglas de EMQX** ([`config/emqx.conf`](config/emqx.conf)): corre dentro del broker. Genera las alertas, guarda el historial de lecturas en MySQL y avisa por Telegram.
 - **Usuario:** la interfaz que ve una persona (la web, [`diseño_pagina_web/web`](../../diseño_pagina_web/web/README.md)). Solo lee. **No se conecta al broker:** recibe del servicio, por HTTP con Server-Sent Events (`/api/eventos`), lo mismo que le llega por estos tópicos. Ver "La web recibe los datos a través del servicio" en las decisiones de diseño.
 
 Todos se conectan al broker por TLS (puerto 8883), verificando el certificado del broker con la CA del proyecto (ver [`README.md`](README.md)).
@@ -22,17 +24,19 @@ Todos se conectan al broker por TLS (puerto 8883), verificando el certificado de
 | `{nodoId}/actuador/{tipo}/estado` | Estado del actuador | ESP32 | Usuario y Servicio | 1 | Sí |
 | `{nodoId}/sensor/{tipo}` | Lectura de sensor | ESP32 | Usuario y Servicio | 0 | No |
 | `{nodoId}/presencia` | Presencia | ESP32 (`online`) / broker por Last Will (`offline`) | Usuario y Servicio | 1 | Sí |
-| `alertas/{tipoAlerta}` | Alertas | Servicio | Usuario | 1 | A definir |
+| `alertas/nodo_offline/{nodoId}` | Nodo caído | Broker (regla `alerta_nodo_offline`) | Servicio (→ Usuario) y regla `notificar_telegram` | 1 | Sí |
+| `alertas/servicio` | Servicio caído | Broker (regla `vigilar_servicio`) | Servicio (→ Usuario) | 1 | Sí |
 
 Filtros de suscripción de cada participante:
 
 | Participante | Filtros |
 |---|---|
 | ESP32 | `{nodoId}/actuador/+/cmd` (solo los de su propio nodo) |
-| Servicio | `+/sensor/+`, `+/actuador/+/estado`, `+/presencia` |
-| Usuario | Ninguno: no se conecta al broker. El servicio le pasa las lecturas, las órdenes que dio, el estado de los actuadores y la presencia. Las alertas se van a pasar igual cuando existan. |
+| Servicio | `+/sensor/+`, `+/actuador/+/estado`, `+/presencia`, `alertas/#` |
+| Motor de reglas de EMQX | `+/presencia`, `+/sensor/+`, `alertas/nodo_offline/+` y los eventos `$events/client_connected` y `$events/client_disconnected` |
+| Usuario | Ninguno: no se conecta al broker. El servicio le pasa las lecturas, las órdenes que dio, el estado de los actuadores, la presencia y las alertas. |
 
-La tabla de resumen dice "Usuario" en *Se suscriben* porque recibe esos datos, aunque le lleguen a través del servicio. En la ACL quedó el usuario MQTT `cliente_web`, de solo lectura, por si más adelante se quiere un cliente que lea directo del broker (por ejemplo, para depurar).
+La tabla de resumen dice "Usuario" en *Se suscriben* porque recibe esos datos, aunque le lleguen a través del servicio. En la ACL quedó el usuario MQTT `cliente_web`, de solo lectura (`+/sensor/+`, `+/actuador/+/estado`, `+/presencia` y `alertas/#`), por si más adelante se quiere un cliente que lea directo del broker (por ejemplo, para depurar).
 
 `+` reemplaza exactamente un nivel ("cualquier nodo", "cualquier tipo") y `#` reemplaza todos los niveles que siguen.
 
@@ -86,14 +90,19 @@ Ejemplo: `bancal1esp1/presencia`, con payload `online` u `offline`.
 
 ### 5. Alertas
 
-`alertas/{tipoAlerta}`
+`alertas/...`
 
-> Los tipos de alerta todavía no están definidos.
+Las publica **el broker**, con su motor de reglas ([`config/emqx.conf`](config/emqx.conf)), no un cliente. Todas tienen un payload JSON con al menos `activa` (`true` mientras el problema sigue, `false` cuando se resolvió) y `desde` (ms desde 1970, la hora del broker).
 
-- **Publica:** solo el servicio, a partir de las lecturas de los sensores, del estado de los actuadores y de la presencia de los nodos.
-- **Se suscribe:** el usuario, con `alertas/#`.
-- **QoS 1:** una alerta perdida es una alerta que nadie ve.
-- **Retain:** a definir junto con los tipos de alerta. Si una alerta representa un estado que se mantiene ("humedad baja" activa hasta que se resuelve), conviene retenerla; si es un evento puntual, no.
+| Tópico | Regla que la publica | A partir de | Payload |
+|---|---|---|---|
+| `alertas/nodo_offline/{nodoId}` | `alerta_nodo_offline` | `+/presencia` (`offline` → activa, `online` → resuelta) | `{"nodo": "bancal1esp1", "activa": true, "desde": 1700000000000}` |
+| `alertas/servicio` | `vigilar_servicio` | eventos del broker `$events/client_disconnected` / `client_connected` del usuario `servicio` | `{"activa": true, "motivo": "dejó de responder", "desde": 1700000000000}` |
+
+- **Se suscriben:** el servicio, con `alertas/#`, que se las pasa a la web en el campo `alertas` de la instantánea (SSE). La regla `notificar_telegram` lee `alertas/nodo_offline/+` y manda el aviso por Telegram. `vigilar_servicio` manda el suyo directamente.
+- **QoS 1:** una alerta perdida es una alerta que nadie ve. Si llega repetida no pasa nada, porque es el mismo estado.
+- **Retain sí:** cada alerta representa un estado que se mantiene ("el nodo está caído"), no un evento puntual. Quien se conecta después ve enseguida cuáles siguen activas. Cuando se resuelve, no se borra: se publica la misma alerta con `activa: false`.
+- **El nodo va en el tópico** (`alertas/nodo_offline/{nodoId}`): así cada nodo tiene su propia alerta retenida y la de un nodo no pisa la de otro.
 
 ## Decisiones de diseño
 
@@ -110,4 +119,8 @@ Ejemplo: `bancal1esp1/presencia`, con payload `online` u `offline`.
   - el control manual o el historial se pueden sumar después como pedidos al servicio, y las órdenes siguen saliendo solo de él.
 - **El servicio reenvía las órdenes cuando el nodo se conecta:** como `/cmd` no es retenido y el ESP32 no recuerda las órdenes al reiniciarse, cada vez que un nodo publica `online` en `{nodoId}/presencia` el servicio le vuelve a mandar las órdenes vigentes.
 - **Presencia con Last Will:** sin este tópico, si un ESP32 se corta el servicio y el usuario solo verían que dejan de llegar lecturas, sin saber si el nodo murió o simplemente no cambió nada. Con el Last Will el broker avisa en nombre del ESP32 aunque este no haya podido despedirse.
-- **Las alertas las genera el servicio**, no el usuario: la lógica de cuándo algo es una alerta queda en un solo lugar y todos los usuarios ven las mismas alertas.
+- **Las alertas las genera el broker**, no el usuario ni cada ESP32: la lógica de cuándo algo es una alerta queda en un solo lugar y todos los usuarios ven las mismas alertas. Se hacen en el motor de reglas, y no en el servicio, por dos razones:
+  - la alerta "servicio caído" no la puede publicar el propio servicio;
+  - las alertas de hoy no necesitan recordar nada entre mensajes: cada `offline` u `online` alcanza para decidir.
+
+  Una alerta que necesite estado (por ejemplo, "humedad baja durante más de 10 minutos") tendría que generarla el servicio, en `alertas/{tipo}/{nodoId}`, con la ACL de publicación correspondiente.

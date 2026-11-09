@@ -42,12 +42,27 @@ export type Nodo = {
   actuadores: Record<Actuador, EstadoActuador>
 }
 
+/**
+ * Una alerta de `alertas/...`, publicada (retenida) por el motor de reglas de EMQX:
+ * - `alertas/nodo_offline/{nodo}`: `{"nodo", "activa", "desde"}`
+ * - `alertas/servicio`: `{"activa", "motivo", "desde"}`
+ */
+export type Alerta = {
+  activa: boolean
+  /** Cuándo cambió, en ms desde 1970, según el broker; `null` si no vino. */
+  desde: number | null
+  /** El resto de los campos del JSON (`nodo`, `motivo`...). */
+  datos: Record<string, unknown>
+}
+
 /** Lo que se le manda a la web (`/api/estado` y cada evento de `/api/eventos`). */
 export type Instantanea = {
   /** Si el servicio está conectado al broker. */
   broker: boolean
   umbrales: Umbrales
   nodos: Record<string, Nodo>
+  /** Por tópico sin el `alertas/` inicial: `nodo_offline/bancal1esp1`, `servicio`... */
+  alertas: Record<string, Alerta>
 }
 
 export type Publicar = (nodoId: string, actuador: Actuador, encendido: boolean) => Promise<void>
@@ -64,10 +79,11 @@ type Opciones = {
 
 export function crearBancales({ umbrales, publicar, log = () => {}, ahora = Date.now }: Opciones) {
   const nodos: Record<string, Nodo> = {}
+  const alertas: Record<string, Alerta> = {}
   let broker = false
   const oyentes = new Set<(instantanea: Instantanea) => void>()
 
-  const instantanea = (): Instantanea => ({ broker, umbrales, nodos })
+  const instantanea = (): Instantanea => ({ broker, umbrales, nodos, alertas })
   const avisar = () => {
     const actual = instantanea()
     for (const oyente of oyentes) oyente(actual)
@@ -157,8 +173,33 @@ export function crearBancales({ umbrales, publicar, log = () => {}, ahora = Date
     return true
   }
 
+  /** `clave` es el tópico sin `alertas/`. Un payload vacío borra el retenido: la alerta deja de existir. */
+  function alAlerta(clave: string, texto: string): boolean {
+    if (texto === '') {
+      if (!(clave in alertas)) return false
+      delete alertas[clave]
+      return true
+    }
+    let json: unknown
+    try {
+      json = JSON.parse(texto)
+    } catch {
+      log(`Alerta alertas/${clave} con un payload que no es JSON: ${texto}`)
+      return false
+    }
+    if (typeof json !== 'object' || json === null || typeof (json as { activa?: unknown }).activa !== 'boolean') {
+      log(`Alerta alertas/${clave} sin el campo "activa": ${texto}`)
+      return false
+    }
+    const { activa, desde, ...datos } = json as Record<string, unknown>
+    const antes = alertas[clave]
+    if (antes && antes.activa !== activa) log(`Alerta ${clave}: ${activa ? 'activa' : 'resuelta'}`)
+    alertas[clave] = { activa: activa as boolean, desde: typeof desde === 'number' ? desde : null, datos }
+    return true
+  }
+
   return {
-    /** Procesa un mensaje de `+/sensor/+`, `+/actuador/+/estado` o `+/presencia`. */
+    /** Procesa un mensaje de `+/sensor/+`, `+/actuador/+/estado`, `+/presencia` o `alertas/#`. */
     alMensaje(topico: string, texto: string) {
       const partes = topico.split('/')
       const [nodoId, seccion, tipo, sufijo] = partes
@@ -166,7 +207,10 @@ export function crearBancales({ umbrales, publicar, log = () => {}, ahora = Date
       if (!nodoId) return
 
       let cambio = false
-      if (partes.length === 3 && seccion === 'sensor' && tipo) cambio = alSensor(nodoId, tipo, valor)
+      if (nodoId === 'alertas') {
+        const clave = partes.slice(1).join('/')
+        if (clave) cambio = alAlerta(clave, valor)
+      } else if (partes.length === 3 && seccion === 'sensor' && tipo) cambio = alSensor(nodoId, tipo, valor)
       else if (partes.length === 4 && seccion === 'actuador' && sufijo === 'estado' && esActuador(tipo))
         cambio = alEstado(nodoId, tipo, valor)
       else if (partes.length === 2 && seccion === 'presencia') cambio = alPresencia(nodoId, valor)
