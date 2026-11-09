@@ -448,6 +448,12 @@ button.interruptor:disabled {
   scrollbar-width: thin;
 }
 
+.vivero-vacio {
+  max-width: 260px;
+  margin: 0 4px 2px;
+  text-align: center;
+}
+
 .vivero-bancal {
   --color: var(--color-apagado);
   display: grid;

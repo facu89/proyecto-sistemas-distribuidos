@@ -8,7 +8,8 @@ import './panel.css'
 
 type Props = {
   estado: EstadoActuadores
-  nodoId: string
+  /** `null` si todavía no se conectó ningún bancal (los controles quedan deshabilitados). */
+  nodoId: string | null
   nodo: Nodo | null
   umbrales: Instantanea['umbrales'] | null
   /** Si hay conexión con el servicio y el servicio con el broker: sin eso no se puede pedir nada. */
@@ -68,11 +69,12 @@ export function PanelActuadores({ estado, nodoId, nodo, umbrales, disponible }: 
   const habilitado = disponible && nodo !== null && !enviando
   const encendidos = ACTUADORES.filter((a) => estado[a.id]).length
 
-  const pedir = async (pedido: () => Promise<void>) => {
+  const pedir = async (pedido: (nodoId: string) => Promise<void>) => {
+    if (nodoId === null) return
     setEnviando(true)
     setError(null)
     try {
-      await pedido()
+      await pedido(nodoId)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -104,7 +106,7 @@ export function PanelActuadores({ estado, nodoId, nodo, umbrales, disponible }: 
             className="modo-opcion"
             aria-pressed={modo === id}
             disabled={!habilitado}
-            onClick={() => modo !== id && pedir(() => cambiarModo(nodoId, id))}
+            onClick={() => modo !== id && pedir((n) => cambiarModo(n, id))}
           >
             {nombre}
           </button>
@@ -144,7 +146,7 @@ export function PanelActuadores({ estado, nodoId, nodo, umbrales, disponible }: 
                   aria-checked={pedido}
                   aria-labelledby={idNombre}
                   disabled={!habilitado}
-                  onClick={() => pedir(() => ordenarActuador(nodoId, id, !pedido))}
+                  onClick={() => pedir((n) => ordenarActuador(n, id, !pedido))}
                 >
                   <span className="interruptor-perilla" />
                 </button>

@@ -1,20 +1,13 @@
 import { nombreBancal, type ResumenNodo } from '../bancal'
 import { IconoBancal, IconoVivero } from './iconos'
 import { PanelDesplegable } from './PanelDesplegable'
+import { estadoNodo, resumenVivero } from './vivero'
 
 type Props = {
   lista: ResumenNodo[]
-  nodoId: string
+  /** `null` si todavía no se conectó ningún bancal. */
+  nodoId: string | null
   onElegir: (nodoId: string) => void
-}
-
-type Tono = 'ok' | 'error' | 'apagado'
-
-function estadoNodo({ presencia, alerta }: ResumenNodo): { tono: Tono; texto: string } {
-  if (alerta) return { tono: 'error', texto: 'Caído' }
-  if (presencia === 'online') return { tono: 'ok', texto: 'En línea' }
-  if (presencia === 'offline') return { tono: 'error', texto: 'Desconectado' }
-  return { tono: 'apagado', texto: 'Sin datos' }
 }
 
 /**
@@ -23,57 +16,63 @@ function estadoNodo({ presencia, alerta }: ResumenNodo): { tono: Tono; texto: st
  * bancal se ve sin tener que entrar a ese bancal.
  */
 export function SelectorBancal({ lista, nodoId, onElegir }: Props) {
-  if (lista.length === 0) return null
-
-  const caidos = lista.filter((n) => estadoNodo(n).tono === 'error').length
-  const resumen = caidos > 0 ? `${caidos} con problemas` : 'Todos en línea'
+  const resumen = resumenVivero(lista)
+  const cantidad = `${lista.length} ${lista.length === 1 ? 'bancal' : 'bancales'}`
 
   return (
     <PanelDesplegable
       lado="abajo"
       titulo="Vivero"
-      etiqueta={nombreBancal(nodoId)}
+      etiqueta={nodoId === null ? 'Sin bancales' : nombreBancal(nodoId)}
       icono={<IconoVivero />}
       insignia={
         <span
           className="punto-estado"
-          data-estado={caidos > 0 ? 'error' : 'ok'}
+          data-estado={resumen.tono}
           role="img"
-          aria-label={`${lista.length} bancales, ${resumen.toLowerCase()}`}
+          aria-label={lista.length === 0 ? resumen.texto : `${cantidad}: ${resumen.texto}`}
         />
       }
     >
-      <ul className="vivero-lista">
-        {lista.map((nodo) => {
-          const { tono, texto } = estadoNodo(nodo)
-          return (
-            <li key={nodo.id}>
-              <button
-                type="button"
-                className="vivero-bancal"
-                data-estado={tono}
-                aria-current={nodo.id === nodoId ? 'true' : undefined}
-                aria-label={`${nombreBancal(nodo.id)} (${nodo.id}): ${texto}`}
-                title={nodo.id}
-                onClick={() => onElegir(nodo.id)}
-              >
-                <span className="vivero-bancal-icono">
-                  <IconoBancal />
-                </span>
-                <span className="vivero-bancal-nombre">{nombreBancal(nodo.id)}</span>
-                <span className="vivero-bancal-estado">
-                  <span className="punto-estado" data-estado={tono} aria-hidden />
-                  {texto}
-                </span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
+      {lista.length === 0 ? (
+        <p className="flotante-nota vivero-vacio">
+          Todavía no se conectó ningún bancal. Aparecen acá apenas su ESP32 se conecta al broker.
+        </p>
+      ) : (
+        <>
+          <ul className="vivero-lista">
+            {lista.map((nodo) => {
+              const { tono, texto } = estadoNodo(nodo)
+              return (
+                <li key={nodo.id}>
+                  <button
+                    type="button"
+                    className="vivero-bancal"
+                    data-estado={tono}
+                    aria-current={nodo.id === nodoId ? 'true' : undefined}
+                    aria-label={`${nombreBancal(nodo.id)} (${nodo.id}): ${texto}`}
+                    title={nodo.id}
+                    onClick={() => onElegir(nodo.id)}
+                  >
+                    <span className="vivero-bancal-icono">
+                      <IconoBancal />
+                    </span>
+                    <span className="vivero-bancal-nombre">{nombreBancal(nodo.id)}</span>
+                    <span className="vivero-bancal-estado">
+                      <span className="punto-estado" data-estado={tono} aria-hidden />
+                      {texto}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
 
-      <p className="flotante-nota">
-        {lista.length} {lista.length === 1 ? 'bancal' : 'bancales'} · {resumen}
-      </p>
+          <p className="flotante-nota">
+            {cantidad} · {resumen.texto}
+          </p>
+        </>
+      )}
     </PanelDesplegable>
   )
 }

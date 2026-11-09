@@ -88,9 +88,10 @@ export function useBancal() {
     if (clave.startsWith(ALERTA_OFFLINE)) ids.add(clave.slice(ALERTA_OFFLINE.length))
   }
   const ordenados = [...ids].sort(ordenNatural)
-  const nodoId = nodoElegido ?? ordenados[0] ?? 'bancal1esp1'
-  // El elegido aparece en la lista aunque el servicio no lo conozca (por ejemplo, un ?nodo= mal escrito).
-  if (!ids.has(nodoId)) ordenados.unshift(nodoId)
+  // `null` mientras no se conectó ningún bancal y no se pidió uno con ?nodo=.
+  const nodoId = nodoElegido ?? ordenados[0] ?? null
+  // El pedido con ?nodo= aparece en la lista aunque el servicio no lo conozca (queda "Sin datos").
+  if (nodoId !== null && !ids.has(nodoId)) ordenados.unshift(nodoId)
 
   const lista: ResumenNodo[] = ordenados.map((id) => ({
     id,
@@ -110,8 +111,9 @@ export function useBancal() {
     umbrales: instantanea?.umbrales ?? null,
     /** Todos los bancales, para el selector. */
     lista,
+    /** El bancal que se muestra; `null` si todavía no hay ninguno. */
     nodoId,
-    nodo: nodos[nodoId] ?? null,
+    nodo: nodoId === null ? null : (nodos[nodoId] ?? null),
     elegirNodo,
   }
 }
