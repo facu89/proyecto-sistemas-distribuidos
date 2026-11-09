@@ -3,9 +3,15 @@ import { IconoCerrar } from './iconos'
 import './panel.css'
 
 type Props = {
-  /** Esquina superior donde va el botón; el panel se despliega debajo. */
-  lado: 'izquierda' | 'derecha'
+  /**
+   * Dónde va el botón: en una esquina superior (el panel se despliega debajo) o abajo al centro
+   * (el panel se despliega arriba del botón).
+   */
+  lado: 'izquierda' | 'derecha' | 'abajo'
+  /** Título del panel; también es el texto del botón si no se pasa `etiqueta`. */
   titulo: string
+  /** Texto del botón, si tiene que ser distinto del título (por ejemplo, el bancal elegido). */
+  etiqueta?: string
   icono: ReactNode
   /** Algo chico al lado del título del botón (contador, punto de estado...). */
   insignia?: ReactNode
@@ -16,7 +22,7 @@ type Props = {
  * Botón flotante que despliega un panel debajo. Se cierra con el botón, con la cruz o con Escape.
  * No se cierra al tocar la escena, así se puede mirar la animación con el panel abierto.
  */
-export function PanelDesplegable({ lado, titulo, icono, insignia, children }: Props) {
+export function PanelDesplegable({ lado, titulo, etiqueta, icono, insignia, children }: Props) {
   const [abierto, setAbierto] = useState(false)
   const idPanel = useId()
 
@@ -37,7 +43,7 @@ export function PanelDesplegable({ lado, titulo, icono, insignia, children }: Pr
         onClick={() => setAbierto((a) => !a)}
       >
         {icono}
-        <span>{titulo}</span>
+        <span>{etiqueta ?? titulo}</span>
         {insignia}
       </button>
 

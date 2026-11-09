@@ -1,4 +1,5 @@
-/* Paneles flotantes de la home: lecturas (arriba a la izquierda) y actuadores (arriba a la derecha) */
+/* Paneles flotantes de la home: lecturas (arriba a la izquierda), actuadores (arriba a la derecha)
+   y el vivero con los bancales (abajo al centro) */
 
 .flotante {
   --panel-fondo: rgb(250 246 240 / 0.9);
@@ -414,6 +415,97 @@ button.interruptor:disabled {
   color: var(--panel-tenue);
 }
 
+/* ---------- vivero: selector de bancal (abajo al centro) ---------- */
+
+/* Ocupa el ancho de la pantalla (los clics pasan por los costados, ver pointer-events en .flotante)
+   para que la card pueda crecer y deslizarse de costado si hay muchos bancales. */
+.flotante[data-lado='abajo'] {
+  top: auto;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  flex-direction: column-reverse;
+  align-items: center;
+}
+
+.flotante[data-lado='abajo'] .flotante-panel {
+  width: auto;
+  max-width: 100%;
+  transform-origin: bottom center;
+}
+
+.flotante[data-lado='abajo'] .flotante-panel[data-abierto='false'] {
+  transform: translateY(8px) scale(0.96);
+}
+
+.vivero-lista {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 2px;
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: thin;
+}
+
+.vivero-bancal {
+  --color: var(--color-apagado);
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  width: 112px;
+  padding: 12px 8px 10px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--panel-texto);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.vivero-bancal[data-estado='ok'] { --color: var(--color-ok); }
+.vivero-bancal[data-estado='error'] { --color: var(--color-error); }
+
+.vivero-bancal:hover:not([aria-current='true']) {
+  background: rgb(0 0 0 / 0.04);
+}
+
+.vivero-bancal[aria-current='true'] {
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(45 32 20 / 0.18), inset 0 0 0 1.5px color-mix(in srgb, var(--color) 45%, transparent);
+}
+
+.vivero-bancal-icono {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color) 14%, white);
+  color: var(--color);
+}
+
+.vivero-bancal-nombre {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.vivero-bancal-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--panel-tenue);
+  white-space: nowrap;
+}
+
+.vivero-bancal-estado .punto-estado {
+  width: 8px;
+  height: 8px;
+}
+
 /* ---------- foco visible con teclado ---------- */
 
 .flotante :focus-visible {
@@ -429,7 +521,7 @@ button.interruptor:disabled {
     right: 16px;
   }
 
-  .flotante-panel {
+  .flotante:not([data-lado='abajo']) .flotante-panel {
     width: 100%;
   }
 }
@@ -437,6 +529,7 @@ button.interruptor:disabled {
 @media (prefers-reduced-motion: reduce) {
   .flotante-boton,
   .flotante-panel,
+  .vivero-bancal,
   .interruptor,
   .interruptor-perilla {
     transition: none;

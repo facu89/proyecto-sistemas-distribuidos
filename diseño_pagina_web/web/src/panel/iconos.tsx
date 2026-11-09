@@ -62,6 +62,35 @@ export function IconoCerrar() {
   )
 }
 
+/** Invernadero (vivero): techo a dos aguas, paneles de vidrio y un brote adentro. */
+export function IconoVivero() {
+  return (
+    <svg {...base}>
+      <path d="M2.5 20.5h19" />
+      <path d="M4 20.5V10l8-6 8 6v10.5" />
+      <path d="M8 20.5V7M16 20.5V7" />
+      <path d="M12 20.5v-4.5" />
+      <path d="M12 17.2c-1.8 0-2.8-1-2.8-2.7 1.8 0 2.8 1 2.8 2.7Z" />
+      <path d="M12 16c0-1.7 1-2.7 2.8-2.7 0 1.7-1 2.7-2.8 2.7Z" />
+    </svg>
+  )
+}
+
+/** Bancal: cajón de cultivo elevado con tres plantines. */
+export function IconoBancal() {
+  return (
+    <svg {...base}>
+      <path d="M3 14h18l-1.6 6.2a1 1 0 0 1-1 .8H5.6a1 1 0 0 1-1-.8L3 14Z" />
+      <path d="M3.6 16.5h16.8" />
+      <path d="M7 14v-3M12 14V8.5M17 14v-3" />
+      <path d="M7 12c-1.4 0-2.2-.8-2.2-2.2 1.4 0 2.2.8 2.2 2.2Z" />
+      <path d="M12 10c0-1.6.9-2.6 2.6-2.6 0 1.6-.9 2.6-2.6 2.6Z" />
+      <path d="M12 11c-1.6 0-2.6-.9-2.6-2.6 1.6 0 2.6.9 2.6 2.6Z" />
+      <path d="M17 12c0-1.4.8-2.2 2.2-2.2 0 1.4-.8 2.2-2.2 2.2Z" />
+    </svg>
+  )
+}
+
 export function IconoSensores() {
   return (
     <svg {...base}>

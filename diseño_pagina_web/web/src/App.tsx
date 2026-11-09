@@ -8,6 +8,7 @@ import { DEPURACION } from './depuracion'
 import { Escena } from './escena/Escena'
 import { PanelActuadores } from './panel/PanelActuadores'
 import { PanelLecturas } from './panel/PanelLecturas'
+import { SelectorBancal } from './panel/SelectorBancal'
 
 export default function App() {
   // El estado llega del servicio por SSE (bancal.ts). La escena muestra lo que informó el ESP32 o,
@@ -48,6 +49,7 @@ export default function App() {
         umbrales={bancal.umbrales}
         disponible={bancal.conexion === 'conectada' && bancal.broker}
       />
+      <SelectorBancal lista={bancal.lista} nodoId={bancal.nodoId} onElegir={bancal.elegirNodo} />
     </main>
   )
 }

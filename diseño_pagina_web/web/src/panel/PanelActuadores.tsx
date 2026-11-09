@@ -57,6 +57,12 @@ const MODOS: { id: Modo; nombre: string }[] = [
 export function PanelActuadores({ estado, nodoId, nodo, umbrales, disponible }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  // Al cambiar de bancal en el selector, el error del pedido anterior ya no corresponde.
+  const [nodoDelError, setNodoDelError] = useState(nodoId)
+  if (nodoDelError !== nodoId) {
+    setNodoDelError(nodoId)
+    setError(null)
+  }
   const modo = nodo?.modo ?? 'automatico'
   const manual = modo === 'manual'
   const habilitado = disponible && nodo !== null && !enviando

@@ -175,7 +175,7 @@ Se cambió el enfoque: la web **no se conecta al broker**. El servicio ([`softwa
 - [x] Panel **Sensores** arriba a la izquierda: lecturas, presencia del nodo y estado de la conexión (servicio y broker)
 - [x] Selección de nodo por URL (`?nodo=`); por defecto, el primero que informe el servicio
 - [ ] Alertas (cuando el servicio las genere)
-- [ ] Selector de bancal en la interfaz, cuando haya más de un nodo
+- [x] Selector de bancal en la interfaz (`src/panel/SelectorBancal.tsx`): botón "Vivero" abajo al centro que despliega una card horizontal con los bancales, con presencia y alerta de cada nodo; la elección se guarda en `?nodo=`
 - [x] **Modo automático / manual** en el panel de actuadores. En manual los interruptores le piden la orden al servicio (`POST`) y las reglas no actúan hasta volver a automático. Al volver se aplican las reglas con las últimas lecturas. El botón muestra la etiqueta "Manual".
 - [ ] **Modificar los rangos desde la web:** editar los umbrales de riego y del cooler en el panel (`POST` al servicio). Habría que validar que el de apagar quede del lado correcto del de prender y guardarlos para que no se pierdan al reiniciar el servicio.
 
