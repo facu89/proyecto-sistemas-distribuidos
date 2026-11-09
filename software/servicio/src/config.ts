@@ -1,4 +1,5 @@
 import path from 'node:path'
+import type { ConfigHistorial } from './historial.ts'
 import type { Umbrales } from './reglas.ts'
 
 // Las rutas relativas se resuelven desde la carpeta del servicio (software/servicio), no desde donde se
@@ -37,6 +38,21 @@ export function leerConfig() {
     throw new Error('VENTILADOR_APAGAR_DEBAJO_DE no puede ser mayor que VENTILADOR_ENCENDER_DESDE')
   }
 
+  // Historial (MySQL): solo si hay a dónde conectarse. En compose MYSQL_HOST=mysql; con `pnpm start`
+  // suelto no está y la web avisa que el historial no está disponible.
+  const mysqlHost = process.env.MYSQL_HOST?.trim()
+  const claveLector = process.env.MYSQL_LECTOR_PASSWORD?.trim()
+  const historial: ConfigHistorial | null =
+    mysqlHost && claveLector
+      ? {
+          host: mysqlHost,
+          puerto: numero('MYSQL_PUERTO', 3306),
+          usuario: texto('MYSQL_LECTOR_USER', 'lector'),
+          clave: claveLector,
+          base: texto('MYSQL_DATABASE', 'mqtt'),
+        }
+      : null
+
   return {
     mqtt: {
       url: texto('MQTT_URL', 'mqtts://localhost:8883'),
@@ -50,6 +66,7 @@ export function leerConfig() {
       webDist: ruta('WEB_DIST', '../../diseño_pagina_web/web/dist'),
     },
     umbrales,
+    historial,
   }
 }
 

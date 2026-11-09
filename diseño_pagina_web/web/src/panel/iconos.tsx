@@ -71,3 +71,13 @@ export function IconoSensores() {
     </svg>
   )
 }
+
+/** Chevron; `hacia` elige para dónde apunta (abre/cierra el historial, pasa de página en las tablas). */
+export function IconoFlecha({ hacia }: { hacia: 'arriba' | 'abajo' | 'izquierda' | 'derecha' }) {
+  const d = { arriba: 'm6 15 6-6 6 6', abajo: 'm6 9 6 6 6-6', izquierda: 'm15 6-6 6 6 6', derecha: 'm9 6 6 6-6 6' }[hacia]
+  return (
+    <svg {...base}>
+      <path d={d} />
+    </svg>
+  )
+}

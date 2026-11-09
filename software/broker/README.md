@@ -1,6 +1,6 @@
 # Broker (EMQX + MySQL)
 
-EMQX es el broker MQTT; MySQL guarda los usuarios (`mqtt_user`), sus permisos (`mqtt_acl`) y el historial de lecturas (`historial_lecturas`: una lectura por sensor cada 10 minutos, se vacía cada 14 días; lo llena la regla `guardar_historial` de `config/emqx.conf`). Los tópicos y quién publica en cada uno están en [`topics.md`](topics.md).
+EMQX es el broker MQTT; MySQL guarda los usuarios (`mqtt_user`), sus permisos (`mqtt_acl`) y el historial de lecturas (`historial_lecturas`: una lectura por sensor cada 10 minutos, se borra lo de más de 14 días; lo llena la regla `guardar_historial` de `config/emqx.conf`). Los tópicos y quién publica en cada uno están en [`topics.md`](topics.md).
 
 ## Cómo se levanta
 
@@ -18,17 +18,30 @@ Levanta cuatro contenedores, en orden:
 |---|---|
 | `certs` | Corre y termina. Deja listo el certificado TLS del broker en `security/certs` y solo lo regenera si hace falta (ver [TLS](#tls-certificados)). |
 | `mysql` | Usuarios, ACL e historial de lecturas. |
+| `mysql-actualizar` | Corre y termina. Pone al día una base que ya tiene datos, **sin borrar nada** (ver abajo). |
 | `emqx` | El broker. Arranca cuando `certs` terminó bien y MySQL está listo. |
-| `servicio` | El [servicio central](../servicio/README.md): reglas de los actuadores y la web en **http://localhost:8080**. Su imagen también compila la web. Arranca cuando EMQX está listo. |
+| `servicio` | El [servicio central](../servicio/README.md): reglas de los actuadores, la web en **http://localhost:8080** y el historial (lo lee de MySQL con el usuario `lector`). Su imagen también compila la web. Arranca cuando EMQX está listo y `mysql-actualizar` terminó. |
 
 La primera vez tarda porque baja las imágenes y compila la web; después arranca en segundos. Si se cambia el código del servicio o de la web, hay que reconstruir la imagen: `docker compose up -d --build`.
 
 Comandos útiles: `docker compose ps` (estado), `docker compose logs -f servicio` (logs), `docker compose down` (apagar).
 
-Los usuarios y la ACL se cargan desde `mysql/init.sql` y `mysql/02-init-users.sh` **solo cuando el volumen de MySQL está vacío**. Si cambian `secrets/.env` (los usuarios MQTT) o esos scripts, hay que borrar los volúmenes y volver a levantar:
+### Cambios en la base sin perder el historial
+
+MySQL corre `mysql/init.sql` y `mysql/02-init-users.sh` **solo cuando el volumen está vacío**. Para que un cambio en esos archivos o en `secrets/.env` no obligue a borrar todo, en cada `compose up` el contenedor `mysql-actualizar` corre `mysql/actualizar.sh`, que:
+
+1. **Vuelve a correr `init.sql`:** crea las tablas que falten y agrega los permisos nuevos. Todo es `CREATE TABLE IF NOT EXISTS` e `INSERT IGNORE`, así que lo que ya está queda igual.
+2. **Vuelve a correr `02-init-users.sh`:** si cambió la clave de un usuario MQTT en `secrets/.env`, la actualiza.
+3. **Crea o actualiza el usuario `lector`**, con la clave `MYSQL_LECTOR_PASSWORD`. Solo puede hacer `SELECT` sobre `historial_lecturas`, y el servicio lo usa para el historial de la web.
+
+**¿Por qué otro usuario?** El servicio atiende pedidos de la web. Si alguna vez una consulta tuviera un error, con `lector` lo peor que puede pasar es leer el historial. Con el usuario `emqx` podría leer las claves (hash) de `mqtt_user`, cambiar los permisos o borrar datos.
+
+Ojo: hoy el contenedor del servicio recibe todo `secrets/.env` (`env_file`), así que igual ve las otras claves. Separar eso está en los pendientes.
+
+Si una tabla ya existente necesita **cambiar de forma** (una columna nueva, por ejemplo), `CREATE TABLE IF NOT EXISTS` no la toca: hay que agregar un `ALTER TABLE` a `actualizar.sh`. Para empezar de cero, igual que antes:
 
 ```bash
-docker compose down -v   # borra los datos de EMQX y MySQL
+docker compose down -v   # borra los datos de EMQX y MySQL, incluido el historial
 docker compose up -d
 ```
 

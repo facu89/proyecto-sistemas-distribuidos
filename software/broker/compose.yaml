@@ -2,7 +2,7 @@
 #   cp -r secrets.example secrets   y completar secrets/.env
 #
 # Con "docker compose up -d" (o "podman compose up -d") se levanta todo, en este orden:
-#   certs -> mysql -> emqx -> servicio
+#   certs -> mysql -> mysql-actualizar -> emqx -> servicio
 # No hace falta instalar nada más que Docker o Podman: los certificados y la web se generan en contenedores.
 
 services:
@@ -59,12 +59,35 @@ services:
       MQTT_CA: /certs/ca.pem
       # Escucha en todas las interfaces del contenedor; el "ports" de abajo decide quién llega
       HTTP_HOST: 0.0.0.0
+      # Historial (GET /api/historial): lo lee de MySQL con el usuario "lector", que solo puede hacer
+      # SELECT sobre historial_lecturas. La clave es MYSQL_LECTOR_PASSWORD (secrets/.env).
+      MYSQL_HOST: mysql
     ports:
       - "8080:8080"
     volumes:
       - ./security/certs:/certs:ro,z
     depends_on:
       emqx:
+        condition: service_healthy
+      mysql-actualizar:
+        condition: service_completed_successfully
+
+  # Corre en cada "up" con MySQL listo y termina: pone al día la base sin borrar nada (tablas y
+  # permisos nuevos de init.sql, claves de los usuarios y el usuario "lector"). Ver mysql/actualizar.sh.
+  # Usa la misma imagen de MySQL solo por el cliente "mysql": no levanta otra base.
+  mysql-actualizar:
+    image: mysql:8.4
+    container_name: mysql-actualizar
+    restart: "no"
+    env_file: secrets/.env
+    environment:
+      MYSQL_DATABASE: mqtt
+      MYSQL_HOST: mysql
+    entrypoint: ["bash", "/actualizar/actualizar.sh"]
+    volumes:
+      - ./mysql:/actualizar:ro,z
+    depends_on:
+      mysql:
         condition: service_healthy
 
   mysql:

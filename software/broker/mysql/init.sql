@@ -40,7 +40,8 @@ INSERT IGNORE INTO mqtt_acl (username, permission, action, topic) VALUES
 
 -- Historial de lecturas de sensores. Lo llena la regla guardar_historial de EMQX (config/emqx.conf):
 --   * guarda una lectura por sensor (nodo + tipo) cada 10 minutos como mucho;
---   * cuando la fila más vieja cumple 14 días, vacía la tabla.
+--   * borra las filas de más de 14 días (acción borrar_historial_viejo).
+-- La lee el servicio con el usuario "lector" (solo SELECT sobre esta tabla, ver actualizar.sh).
 -- ts es la hora en que el broker recibió el mensaje, en UTC (la zona horaria del contenedor).
 CREATE TABLE IF NOT EXISTS historial_lecturas (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

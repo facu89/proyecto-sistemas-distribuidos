@@ -57,7 +57,7 @@ Las aplica el servicio ([`software/servicio/src/reglas.ts`](software/servicio/sr
 
 ### Motor de reglas de EMQX (*Rule Engine*)
 Son consultas tipo SQL sobre los mensajes, con acciones: republicar, escribir en una base o llamar a un webhook. No reemplazan las reglas del servicio, porque la histéresis necesita recordar el estado anterior y el motor evalúa cada mensaje por separado. Sirven para:
-- [x] **Historial:** la regla `guardar_historial` guarda en MySQL (`historial_lecturas`) una lectura por sensor cada 10 minutos, hasta 14 días, sin pasar por el servicio. Falta mostrarlo: ver "Dashboard del historial" más abajo.
+- [x] **Historial:** la regla `guardar_historial` guarda en MySQL (`historial_lecturas`) una lectura por sensor cada 10 minutos, hasta 14 días, sin pasar por el servicio. Se ve en el dashboard de la web. Borra solo las lecturas de más de 14 días (antes vaciaba la tabla entera).
 - [ ] **Filtrar en el broker** lecturas inválidas (`nan` o fuera de rango) antes de que lleguen a los suscriptores.
 - [ ] **Alertas simples** sin estado, por ejemplo republicar en `alertas/nodo_offline` cuando llega `offline` en `+/presencia`.
 
@@ -71,7 +71,8 @@ EMQX hace un HTTP POST por cada mensaje o evento que elijamos. Sirve cuando del 
 - [ ] Mostrar las alertas en la web (hoy llegan por SSE pero el panel no las dibuja).
 - [x] Modo automático / manual desde la web: en manual, los interruptores del panel le piden la orden al servicio (ver [README del servicio](software/servicio/README.md#modo-automático--manual)).
 - [ ] **Modificar los rangos desde la web:** editar en el panel los umbrales del riego (20 % / 70 %) y del cooler (28 °C / 26 °C). Hoy solo se cambian en `software/servicio/.env` y reiniciando el servicio. Habría que validarlos y guardarlos (por ejemplo, en un JSON o en MySQL) para que sobrevivan a un reinicio.
-- [ ] **Dashboard del historial:** gráficos por sensor con los datos de `historial_lecturas`. El servicio los consultaría en MySQL (usuario de solo lectura) y los serviría por HTTP; la web los mostraría en una vista aparte (ver [PLAN de la web](diseño_pagina_web/PLAN.md), Fase 6).
+- [x] **Dashboard del historial:** botón **▲ Historial** en la web. Gráficos tiempo/magnitud y una tabla por sensor, con los datos de `historial_lecturas` que el servicio lee con un usuario de MySQL de solo lectura (ver [PLAN de la web](diseño_pagina_web/PLAN.md), Fase 6).
+- [ ] Pasarle al contenedor del servicio solo las variables que usa, no todo `secrets/.env`.
 - [ ] Guardar el modo de cada nodo: hoy vive en memoria y al reiniciar el servicio todos vuelven a automático.
 - [ ] **Usuarios en la web:** hoy cualquiera que pueda abrirla puede cambiar el modo y manejar los actuadores. Hace falta antes de abrir el servicio a la red (`HTTP_HOST=0.0.0.0`).
 - [ ] Varios bancales: selector de nodo en la web (hoy se elige con `?nodo=`) y un usuario MQTT por ESP32.

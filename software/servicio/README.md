@@ -90,6 +90,7 @@ Detalles:
 |---|---|
 | `GET /api/estado` | Devuelve el estado de todos los nodos en JSON |
 | `GET /api/eventos` | SSE: el mismo JSON al conectarse y otra vez en cada cambio (evento `estado`) |
+| `GET /api/historial?nodo=…&desde=…&hasta=…&tipo=…` | Lecturas guardadas en MySQL (ver [Historial](#historial)) |
 | `POST /api/nodos/{nodoId}/modo` | Cambia el modo. Cuerpo: `{"modo": "automatico"}` o `{"modo": "manual"}` |
 | `POST /api/nodos/{nodoId}/actuadores/{tipo}` | Orden manual (`tipo` = `luz`, `cooler` o `riego`). Cuerpo: `{"encendido": true}` o `false`. Con el nodo en automático responde 409 |
 | Cualquier otra | Los archivos de `diseño_pagina_web/web/dist/` |
@@ -115,6 +116,23 @@ Así otra página abierta en el mismo navegador no puede mandar órdenes al serv
 
 **No hay usuarios ni claves.** Cualquiera que pueda abrir la web puede cambiar el modo y manejar los actuadores. Por defecto el servicio escucha solo en esta máquina (`HTTP_HOST=127.0.0.1`). Con `0.0.0.0`, cualquier equipo de la red puede hacerlo. Agregar autenticación está en los pendientes.
 
+## Historial
+
+El dashboard de la web (botón **▲ Historial**) pide `GET /api/historial`:
+
+| Parámetro | Qué es |
+|---|---|
+| `nodo` | Obligatorio, por ejemplo `bancal1esp1` |
+| `desde`, `hasta` | En milisegundos desde 1970. Por defecto, las últimas 24 horas. Hasta 15 días de rango |
+| `tipo` | Opcional: un solo sensor (`temperatura_aire`, `luz`...) |
+
+Responde `{"nodo", "desde", "hasta", "series": {"temperatura_aire": [[instante_ms, valor], ...], ...}}`. El tipo está en `src/historial-tipos.ts` y la web lo importa de ahí.
+
+**De dónde salen los datos:** el servicio no guarda nada. Las lecturas las escribe EMQX en `historial_lecturas`, con la regla `guardar_historial`: una por sensor cada 10 minutos, y borra las de más de 14 días. El servicio las lee con el usuario `lector` de MySQL, que solo puede hacer `SELECT` sobre esa tabla (ver el [README del broker](../broker/README.md#cambios-en-la-base-sin-perder-el-historial)).
+
+- **Configuración:** el compose le pasa `MYSQL_HOST=mysql` y `MYSQL_LECTOR_PASSWORD` sale de `secrets/.env`.
+- **Sin MySQL:** con `pnpm start` suelto no hay `MYSQL_HOST`, así que la ruta responde 503 y la web avisa que el historial no está disponible.
+
 ## Archivos
 
 ```
@@ -124,5 +142,7 @@ src/
 ├── mqtt.ts         # conexión TLS, suscripciones y publicación de órdenes
 ├── reglas.ts       # las reglas (funciones puras) + reglas.test.ts
 ├── bancal.ts       # estado en memoria por nodo, modo y cuándo ordenar + bancal.test.ts
-└── http.ts         # web estática, /api/estado, /api/eventos y los POST + http.test.ts
+├── historial.ts    # consulta del historial en MySQL y validación de parámetros + historial.test.ts
+├── historial-tipos.ts # forma del JSON de /api/historial (la importa la web)
+└── http.ts         # web estática, /api/estado, /api/eventos, /api/historial y los POST + http.test.ts
 ```

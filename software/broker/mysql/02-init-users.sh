@@ -5,9 +5,16 @@
 
 set -e
 
+# Corre en dos lugares:
+#   - al crear la base (docker-entrypoint-initdb.d): usa docker_process_sql del entrypoint de MySQL;
+#   - en cada "compose up", desde el contenedor mysql-actualizar (actualizar.sh), que define MYSQL_HOST.
+# Las sentencias se pueden repetir sin duplicar nada (ON DUPLICATE KEY UPDATE), así que volver a
+# correrlo solo actualiza las claves si cambiaron en secrets/.env.
 ejecutar_sql() {
     if declare -f docker_process_sql > /dev/null; then
         docker_process_sql --database="$MYSQL_DATABASE"
+    elif [ -n "${MYSQL_HOST:-}" ]; then
+        MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -h "$MYSQL_HOST" -u root "$MYSQL_DATABASE"
     else
         mysql -u root -p"$MYSQL_ROOT_PASSWORD" --socket="${MYSQL_UNIX_PORT:-/var/run/mysqld/mysqld.sock}" "$MYSQL_DATABASE"
     fi

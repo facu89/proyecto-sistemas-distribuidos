@@ -5,6 +5,9 @@
  * - `GET /api/eventos`: Server-Sent Events. Al conectarse manda la instantánea completa y después una
  *   nueva en cada cambio (evento `estado`). El navegador lo lee con `new EventSource('/api/eventos')`
  *   y se reconecta solo si se corta.
+ * - `GET /api/historial?nodo=&desde=&hasta=&tipo=`: lecturas guardadas en MySQL (historial.ts). `desde` y
+ *   `hasta` en ms desde 1970 (por defecto, las últimas 24 h); `tipo` opcional (un solo sensor).
+ *   503 si el servicio no tiene acceso a MySQL.
  * - `POST /api/nodos/{nodoId}/modo` con `{"modo": "automatico" | "manual"}`.
  * - `POST /api/nodos/{nodoId}/actuadores/{tipo}` con `{"encendido": true | false}` (solo en manual).
  * - Todo lo demás: los archivos del build de la web (`pnpm build` en diseño_pagina_web/web).
@@ -18,6 +21,7 @@ import http from 'node:http'
 import path from 'node:path'
 import { esActuador, esModo, type Bancales, type Resultado } from './bancal.ts'
 import type { Config } from './config.ts'
+import { leerPedido, type ConsultarHistorial } from './historial.ts'
 
 const MAX_CUERPO = 1024
 
@@ -39,7 +43,13 @@ const TIPOS: Record<string, string> = {
   '.woff2': 'font/woff2',
 }
 
-export function crearServidorHttp({ http: config }: Config, bancales: Bancales, log: (mensaje: string) => void) {
+export function crearServidorHttp(
+  { http: config }: Pick<Config, 'http'>,
+  bancales: Bancales,
+  log: (mensaje: string) => void,
+  /** `null` si no hay MySQL: `/api/historial` responde 503. */
+  consultarHistorial: ConsultarHistorial | null = null,
+) {
   const servidor = http.createServer((pedido, respuesta) => {
     const url = new URL(pedido.url ?? '/', 'http://servicio')
 
@@ -79,6 +89,11 @@ export function crearServidorHttp({ http: config }: Config, bancales: Bancales, 
       return
     }
 
+    if (url.pathname === '/api/historial') {
+      atenderHistorial(url.searchParams, respuesta, consultarHistorial, log)
+      return
+    }
+
     if (url.pathname.startsWith('/api/')) {
       respuesta.writeHead(404, { 'Content-Type': TIPOS['.json'] }).end('{"error":"no existe"}')
       return
@@ -108,6 +123,27 @@ export function crearServidorHttp({ http: config }: Config, bancales: Bancales, 
         servidor.closeAllConnections() // las conexiones SSE no se cierran solas
       }),
   }
+}
+
+function atenderHistorial(
+  parametros: URLSearchParams,
+  respuesta: http.ServerResponse,
+  consultar: ConsultarHistorial | null,
+  log: (mensaje: string) => void,
+) {
+  const json = (codigo: number, cuerpo: unknown) =>
+    respuesta.writeHead(codigo, { 'Content-Type': TIPOS['.json'], 'Cache-Control': 'no-store' }).end(JSON.stringify(cuerpo))
+
+  if (!consultar) return json(503, { error: 'El historial no está disponible: el servicio no tiene acceso a MySQL' })
+  const leido = leerPedido(parametros, Date.now())
+  if (!leido.ok) return json(400, { error: leido.error })
+
+  consultar(leido.pedido)
+    .then((historial) => json(200, historial))
+    .catch((error: unknown) => {
+      log(`No se pudo leer el historial: ${error instanceof Error ? error.message : error}`)
+      json(503, { error: 'No se pudo leer el historial de MySQL' })
+    })
 }
 
 const RUTA_MODO = /^\/api\/nodos\/([^/]+)\/modo$/

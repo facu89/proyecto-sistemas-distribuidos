@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { after, before, describe, it } from 'node:test'
 import { crearBancales, type Instantanea } from './bancal.ts'
 import type { Config } from './config.ts'
+import type { PedidoHistorial } from './historial.ts'
 import { crearServidorHttp } from './http.ts'
 
 const UMBRALES = { riegoEncenderDebajoDe: 20, riegoApagarDesde: 70, ventiladorEncenderDesde: 28, ventiladorApagarDebajoDe: 26 }
@@ -72,5 +73,44 @@ describe('POST /api', () => {
   it('el estado incluye el modo', async () => {
     const estado = (await (await fetch(`${base}/api/estado`)).json()) as Instantanea
     assert.equal(estado.nodos.bancal1esp1.modo, 'manual')
+  })
+})
+
+describe('GET /api/historial', () => {
+  it('sin MySQL responde 503', async () => {
+    const respuesta = await fetch(`${base}/api/historial?nodo=bancal1esp1`)
+    assert.equal(respuesta.status, 503)
+  })
+
+  it('devuelve lo que consulta y valida los parámetros antes', async () => {
+    const pedidos: PedidoHistorial[] = []
+    const conHistorial = crearServidorHttp(config, bancales, () => {}, async (pedido) => {
+      pedidos.push(pedido)
+      return { nodo: pedido.nodo, desde: pedido.desde, hasta: pedido.hasta, series: { luz: [[pedido.desde, 1]] } }
+    })
+    const url = `http://127.0.0.1:${await conHistorial.puerto()}/api/historial`
+    try {
+      const respuesta = await fetch(`${url}?nodo=bancal1esp1&desde=1000&hasta=5000&tipo=luz`)
+      assert.equal(respuesta.status, 200)
+      assert.deepEqual(await respuesta.json(), { nodo: 'bancal1esp1', desde: 1000, hasta: 5000, series: { luz: [[1000, 1]] } })
+
+      assert.equal((await fetch(`${url}?nodo=bancal1esp1&desde=9&hasta=1`)).status, 400)
+      assert.equal(pedidos.length, 1) // el pedido inválido no llega a MySQL
+    } finally {
+      await conHistorial.cerrar()
+    }
+  })
+
+  it('si MySQL falla responde 503 sin mostrar el error interno', async () => {
+    const conHistorial = crearServidorHttp(config, bancales, () => {}, async () => {
+      throw new Error('Access denied for user lector')
+    })
+    try {
+      const respuesta = await fetch(`http://127.0.0.1:${await conHistorial.puerto()}/api/historial?nodo=x`)
+      assert.equal(respuesta.status, 503)
+      assert.doesNotMatch(((await respuesta.json()) as { error: string }).error, /lector/)
+    } finally {
+      await conHistorial.cerrar()
+    }
   })
 })

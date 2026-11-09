@@ -5,11 +5,13 @@
  * 2. Con cada lectura aplica las reglas (reglas.ts) y, si cambia la decisión, publica la orden en
  *    `{nodoId}/actuador/{tipo}/cmd` (bancal.ts).
  * 3. Sirve la web y le pasa el estado por Server-Sent Events (http.ts).
+ * 4. Le pasa a la web el historial de lecturas que EMQX guarda en MySQL (historial.ts).
  *
  * Se corre con `pnpm start` (o `pnpm dev`, que se reinicia al cambiar el código) desde software/servicio.
  */
 import { crearBancales } from './bancal.ts'
 import { leerConfig } from './config.ts'
+import { conectarHistorial } from './historial.ts'
 import { crearServidorHttp } from './http.ts'
 import { conectarBroker } from './mqtt.ts'
 
@@ -41,11 +43,17 @@ broker = conectarBroker(config, {
   alConectar: bancales.setBroker,
   log,
 })
-const servidor = crearServidorHttp(config, bancales, log)
+const historial = config.historial ? conectarHistorial(config.historial) : null
+log(
+  config.historial
+    ? `Historial: MySQL en ${config.historial.host}:${config.historial.puerto} como "${config.historial.usuario}"`
+    : 'Historial: sin MySQL (falta MYSQL_HOST o MYSQL_LECTOR_PASSWORD), /api/historial responde 503',
+)
+const servidor = crearServidorHttp(config, bancales, log, historial?.consultar ?? null)
 
 async function cerrar() {
   log('Cerrando...')
-  await Promise.allSettled([broker.cerrar(), servidor.cerrar()])
+  await Promise.allSettled([broker.cerrar(), servidor.cerrar(), historial?.cerrar()])
   process.exit(0)
 }
 process.once('SIGINT', cerrar)

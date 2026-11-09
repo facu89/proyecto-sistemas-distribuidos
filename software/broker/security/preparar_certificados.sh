@@ -22,8 +22,12 @@ AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 C="$AQUI/certs"
 cd "$C"
 
-read -r -a IPS <<< "$(echo "${BROKER_IP:-}" | tr ',;' '  ')"
-read -r -a NOMBRES <<< "$(echo "${BROKER_DNS:-}" | tr ',;' '  ')"
+# "${var%%#*}" descarta un comentario al final de la línea (BROKER_IP=1.2.3.4 # la IP de casa):
+# Docker Compose lo ignora solo, pero podman-compose lo pasa como parte del valor.
+BROKER_IP="${BROKER_IP:-}"
+BROKER_DNS="${BROKER_DNS:-}"
+read -r -a IPS <<< "$(echo "${BROKER_IP%%#*}" | tr ',;' '  ')"
+read -r -a NOMBRES <<< "$(echo "${BROKER_DNS%%#*}" | tr ',;' '  ')"
 
 clave_publica_cert() { openssl x509 -in "$1" -noout -pubkey 2>/dev/null; }
 clave_publica_key()  { openssl pkey -in "$1" -pubout 2>/dev/null; }
