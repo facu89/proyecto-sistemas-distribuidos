@@ -53,9 +53,10 @@ Las aplica el servicio ([`software/servicio/src/reglas.ts`](software/servicio/sr
 - [ ] **Si el servicio se cae, nadie aplica las reglas:** los actuadores quedan como estaban (el ESP32 no tiene reglas propias). Se podría dar al ESP32 un modo de respaldo: si no recibe órdenes ni ve al servicio por un rato, aplicar él unos rangos fijos (por ejemplo, cortar el riego tras N minutos).
 
 ### Broker y seguridad
-- [ ] Cerrar MQTT sin cifrar (1883) y por WebSocket (8083) también en la configuración local: sacarlos de `compose.yaml` y desactivar esos listeners en `emqx.conf` (`listeners.tcp.default.enable = false`, ídem `ws`). En el servidor ya no se publican. Nadie los usa: el ESP32 y el servicio van por TLS.
+- [x] MQTT sin cifrar (1883) y WebSocket (8083 y 8084) apagados en `emqx.conf`; en local, el panel (18083) y la web (8080) solo desde la misma máquina.
 - [x] **Servidor accesible desde cualquier red** (`alumno16`): la web por HTTPS solo para el grupo (`tailscale serve`) y el ESP32 por un único puerto público (`tailscale funnel`). Ver [Servidor](software/broker/README.md#servidor).
 - [ ] **Borrar `software/broker/separar_secretos.sh`** cuando lo hayan corrido todos (cada integrante y el servidor): es una migración de una sola vez. Hay que sacar también su llamada en `desplegar.sh` y la mención en el README del broker, y borrar las copias `secrets/.env.antes-de-separar` (tienen claves) una vez comprobado que todo anda.
+- [ ] **Renovar los certificados antes de que venzan:** la CA vence el 4/11/2027 (se creó con 1 año, aunque el script ahora usa 10) y el certificado del broker, al año de generado. Al ESP32 no le afecta (no controla fechas: `MBEDTLS_HAVE_TIME_DATE` está apagado), pero el servicio (Node) sí las controla y dejaría de conectarse. `preparar_certificados.sh` ya renueva el del broker si le quedan menos de 30 días, pero solo cuando se hace `compose up`. Falta: que también rearme `ca.pem` con la misma `ca.key` y fechas nuevas (el ESP32 sigue sirviendo sin regrabarlo), y un `cron` mensual en el servidor que corra `compose up -d`.
 - [ ] TLS mutuo en el puerto MQTT: que el ESP32 y el servicio presenten un certificado de cliente firmado por nuestra CA. Así el puerto público no aceptaría ni un intento de clave sin certificado.
 
 ### Motor de reglas de EMQX (*Rule Engine*)

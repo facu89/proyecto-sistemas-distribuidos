@@ -22,10 +22,13 @@ services:
     restart: unless-stopped
     env_file: secrets/.env
     ports:
-      - "1883:1883"
-      - "8883:8883"   # Puerto TLS seguro
-      - "8083:8083"
-      - "18083:18083"
+      # MQTT con TLS: abierto a la red, porque el ESP32 se conecta a la IP de esta máquina
+      - "8883:8883"
+      # Panel de EMQX: solo desde esta máquina (http://localhost:18083). Es HTTP sin cifrar: abierto a
+      # la red, la clave del panel viajaría en texto plano.
+      - "127.0.0.1:18083:18083"
+      # 1883 (MQTT sin cifrar) y 8083 (WebSocket) no se publican y están apagados en config/emqx.conf:
+      # todos los clientes (ESP32 y servicio) usan TLS.
     volumes:
       - emqx-data:/opt/emqx/data
       # ",z": en sistemas con SELinux (Fedora + Podman) etiqueta los archivos para que el
@@ -64,7 +67,10 @@ services:
       # usuario "servicio" (solo esas dos tablas). La clave es MYSQL_SERVICIO_PASSWORD (secrets/servicio.env).
       MYSQL_HOST: mysql
     ports:
-      - "8080:8080"
+      # Solo desde esta máquina (http://localhost:8080): la web no tiene login y en manual maneja los
+      # actuadores, así que abierta a la red cualquiera de la WiFi podría hacerlo. Para verla desde el
+      # celular en la misma red, cambiar a "8080:8080" mientras se prueba (o usar el servidor).
+      - "127.0.0.1:8080:8080"
     volumes:
       - ./security/certs:/certs:ro,z
     depends_on:

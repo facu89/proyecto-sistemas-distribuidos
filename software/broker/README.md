@@ -81,13 +81,17 @@ Se podría ir más lejos: que EMQX tampoco vea la clave de root ni las de los cl
 
 ## Puertos
 
-| Puerto | Uso |
-|---|---|
-| 1883 | MQTT sin cifrar (queda hasta que todos usen TLS) |
-| 8883 | MQTT sobre TLS: lo usan el ESP32 y el servicio |
-| 8083 | MQTT por WebSocket sin cifrar |
-| 18083 | Panel de EMQX (usuario y clave en `secrets/.env`) |
-| 8080 | Web y API del servicio |
+En la máquina de cada uno (`compose.yaml`):
+
+| Puerto | Uso | Desde dónde |
+|---|---|---|
+| 8883 | MQTT sobre TLS: lo usan el ESP32 y el servicio | **La red**: el ESP32 se conecta a la IP de esta máquina |
+| 18083 | Panel de EMQX (usuario y clave en `secrets/.env`) | Solo esta máquina (`http://localhost:18083`): es HTTP sin cifrar |
+| 8080 | Web y API del servicio | Solo esta máquina (`http://localhost:8080`): la web no tiene login. Para verla desde el celular en la misma red, cambiar a `"8080:8080"` mientras se prueba |
+
+**1883 (MQTT sin cifrar), 8083 (WebSocket) y 8084 (WebSocket con TLS)** vienen encendidos por defecto en EMQX. Están apagados en `config/emqx.conf` y no se publican: ningún cliente los usa, y abiertos dejarían entrar conexiones cuya clave viaja en texto plano. El 1883 y el 8083 quedaron abiertos de la primera versión, cuando todavía no se usaba TLS.
+
+En el servidor los puertos son otros (ver [Servidor](#servidor)).
 
 ## TLS: certificados
 
