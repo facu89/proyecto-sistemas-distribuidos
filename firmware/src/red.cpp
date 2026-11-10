@@ -21,6 +21,10 @@
 // Certificado de la CA del broker (software/broker/security/certs/ca.pem), embebido en el binario
 // por board_build.embed_txtfiles en platformio.ini. Termina en '\0', como pide esp-tls para PEM.
 extern const char caBrokerInicio[] asm("_binary_certs_ca_pem_start");
+// Certificado y clave privada de este ESP32 (TLS mutuo: el broker los exige). Son los de NODO_ID, que genera
+// software/broker/security/generar_cliente.sh; el broker toma su CN como usuario MQTT.
+extern const char certClienteInicio[] asm("_binary_certs_cliente_pem_start");
+extern const char claveClienteInicio[] asm("_binary_certs_cliente_key_start");
 
 namespace {
 
@@ -180,6 +184,8 @@ void redIniciar() {
   // TLS: el ESP32 verifica que el certificado del broker lo firmó nuestra CA y que incluye MQTT_HOST.
   config.broker.address.transport = MQTT_TRANSPORT_OVER_SSL;
   config.broker.verification.certificate = caBrokerInicio;
+  config.credentials.authentication.certificate = certClienteInicio;
+  config.credentials.authentication.key = claveClienteInicio;
   config.credentials.client_id = NODO_ID;
   config.credentials.username = NODO_ID;
   config.credentials.authentication.password = MQTT_PASS;

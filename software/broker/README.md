@@ -105,7 +105,7 @@ Con `compose up`, el contenedor `certs` corre `security/preparar_certificados.sh
 
 Los certificados los genera `security/generar_certificados.sh`:
 
-- **CA** (`certs/ca.pem` y `certs/ca.key`): se crea solo si no existe. El firmware embebe `ca.pem` (la copia al compilar `firmware/scripts/copiar_ca.py`) y el servicio la usa para verificar al broker. Ninguno de los dos archivos se sube a git.
+- **CA** (`certs/ca.pem` y `certs/ca.key`): se crea solo si no existe. El firmware embebe `ca.pem` (la copia al compilar `firmware/scripts/copiar_certificados.py`) y el servicio la usa para verificar al broker. Ninguno de los dos archivos se sube a git.
 - **Certificado del broker** (`certs/broker.pem` y `certs/broker.key`): firmado por la CA. Su SAN incluye `localhost`, `emqx`, `127.0.0.1` y las IPs de la máquina. Sin argumentos, el script las detecta solo (`security/ips_locales.sh`); también se le pueden pasar a mano IPs y nombres: `./generar_certificados.sh 192.168.1.50 bancal.taile538b8.ts.net`.
 
 Si se regenera solo el certificado del broker, `ca.pem` no cambia y el firmware ya grabado sigue sirviendo. Para hacer una CA nueva hay que borrar `certs/ca.pem` y `certs/ca.key`, y después recompilar y grabar el ESP32.
@@ -121,7 +121,27 @@ El ESP32 verifica que la IP a la que se conecta (`MQTT_HOST`) figure en el certi
 
 Para que la IP no cambie, conviene reservarla en el router (DHCP estático) para la máquina del broker.
 
-El certificado del broker dura 365 días; la CA, 10 años. Para renovar el del broker alcanza con volver a correr el script.
+### Vencimientos y renovación
+
+| Certificado | Dura | Se renueva |
+|---|---|---|
+| CA (`ca.pem`) | 10 años | En un `compose up`, si le queda menos de 1 año: con la **misma clave**, así lo ya firmado y el ESP32 grabado siguen sirviendo (guarda la anterior como `ca.pem.vencia-FECHA`) |
+| Broker (`broker.pem`) | 1 año | En un `compose up`, si le quedan menos de 30 días |
+| Cliente del servicio | 1 año | En un `compose up`, si le quedan menos de 30 días |
+| Cliente de cada ESP32 | 10 años | Hay que generarlo de nuevo y volver a grabar la placa |
+
+Las renovaciones solo ocurren cuando corre el contenedor `certs`, es decir, en cada `compose up` (o `desplegar.sh`). **El ESP32 no controla fechas** (su mbedTLS se compila sin `MBEDTLS_HAVE_TIME_DATE` y no sincroniza la hora): un certificado vencido no lo afecta a él, pero sí al servicio y a EMQX, que verifican las fechas.
+
+**¿Por qué renovar la CA con la misma clave?** Los certificados identifican a la CA por su clave pública (extensión *Authority Key Identifier*), no por el archivo. Con la misma clave, todo lo firmado antes sigue validando y no hace falta tocar el ESP32. Cambiar de clave solo hace falta si se sospecha que `ca.key` se filtró; ahí hay que regrabar todos los ESP32.
+
+### TLS mutuo (certificado de cliente)
+
+El puerto 8883 exige que **el cliente también muestre un certificado** firmado por nuestra CA (`verify = verify_peer` y `fail_if_no_peer_cert = true` en `config/emqx.conf`). Sin certificado, la conexión se corta en el saludo TLS, antes de llegar a probar una clave. Como el puerto está publicado en internet en el servidor, eso deja afuera a cualquiera que no tenga un certificado nuestro.
+
+- **Quién tiene certificado:** el servicio y cada ESP32 de `NODOS_TLS` (`secrets/.env`; por defecto, `MQTT_ESP_USER`). Los genera `security/generar_cliente.sh` en `security/certs/clientes/` (no van a git), en cada `compose up`.
+- **El CN es el usuario:** con `mqtt.peer_cert_as_username = cn`, EMQX toma el usuario del certificado, no el que manda el cliente. El certificado de un ESP32 solo sirve para entrar como ese ESP32, y la clave se sigue pidiendo (contra MySQL): hacen falta las dos cosas.
+- **El ESP32:** `firmware/scripts/copiar_certificados.py` copia al compilar la CA y el certificado y la **clave privada** de su `NODO_ID` a `firmware/certs/` (no va a git), y quedan embebidos en el binario. Se graba con `pio run -t upload`. La clave privada queda en la memoria flash de la placa: quien tenga la placa física puede leerla (para evitarlo está la encriptación de flash del ESP32, pendiente).
+- **Un ESP32 nuevo:** agregar su nombre a `NODOS_TLS` (y su usuario a MySQL), `compose up` para que se genere el certificado, y compilar y grabar con ese `NODO_ID`.
 
 ## Servidor
 

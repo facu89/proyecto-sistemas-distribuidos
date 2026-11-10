@@ -37,6 +37,9 @@ export function conectarBroker({ mqtt: config }: Config, { alMensaje, alConectar
     // TLS: solo se acepta un broker cuyo certificado haya firmado nuestra CA y que incluya el nombre de MQTT_URL.
     ca: fs.readFileSync(config.ca),
     rejectUnauthorized: true,
+    // TLS mutuo: el broker también exige un certificado firmado por nuestra CA, con CN = "servicio"
+    // (lo genera el contenedor "certs", ver software/broker/security/generar_cliente.sh).
+    ...(config.cert && config.claveTls ? { cert: fs.readFileSync(config.cert), key: fs.readFileSync(config.claveTls) } : {}),
     reconnectPeriod: RECONEXION_MS,
     connectTimeout: 10_000,
   })

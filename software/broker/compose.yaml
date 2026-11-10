@@ -61,6 +61,9 @@ services:
       # Dentro de la red de compose el broker se llama "emqx" (el certificado incluye ese nombre)
       MQTT_URL: mqtts://emqx:8883
       MQTT_CA: /certs/ca.pem
+      # TLS mutuo: certificado de cliente del servicio (lo genera el contenedor "certs")
+      MQTT_CERT: /certs/clientes/servicio.pem
+      MQTT_KEY: /certs/clientes/servicio.key
       # Escucha en todas las interfaces del contenedor; el "ports" de abajo decide quién llega
       HTTP_HOST: 0.0.0.0
       # MySQL: lee el historial (GET /api/historial) y guarda el modo y los rangos de cada bancal, con el

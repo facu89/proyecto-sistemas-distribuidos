@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import type { ConfigMysql } from './mysql.ts'
 import { validarUmbrales, type HorarioLuz, type Umbrales } from './reglas.ts'
@@ -29,6 +30,9 @@ function horario(nombre: string): HorarioLuz | null {
   if (!desde || !hasta) throw new Error(`${nombre}="${crudo}" tiene que ser "HH:MM-HH:MM"`)
   return { desde, hasta }
 }
+
+/** La ruta si el archivo existe; si no, `null`. */
+const opcional = (archivo: string) => (fs.existsSync(archivo) ? archivo : null)
 
 const ruta = (nombre: string, porDefecto: string) => path.resolve(CARPETA, texto(nombre, porDefecto))
 
@@ -64,6 +68,10 @@ export function leerConfig() {
     mqtt: {
       url: texto('MQTT_URL', 'mqtts://localhost:8883'),
       ca: ruta('MQTT_CA', '../broker/security/certs/ca.pem'),
+      // Certificado y clave de cliente (TLS mutuo). Si no están, se conecta sin certificado: sirve con un
+      // broker que no lo exige, y si lo exige, el error lo dice.
+      cert: opcional(ruta('MQTT_CERT', '../broker/security/certs/clientes/servicio.pem')),
+      claveTls: opcional(ruta('MQTT_KEY', '../broker/security/certs/clientes/servicio.key')),
       usuario: texto('MQTT_SERVICIO_USER'),
       clave: texto('MQTT_SERVICIO_PASSWORD'),
     },

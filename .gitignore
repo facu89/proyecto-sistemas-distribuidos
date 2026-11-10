@@ -35,3 +35,6 @@ firmware/certs/
 # Certificados TLS del broker: cada máquina genera los suyos (contenedor "certs" de compose.yaml).
 # La CA es local y el firmware la copia al compilar (firmware/scripts/copiar_ca.py).
 software/broker/security/certs/*.pem
+software/broker/security/certs/*.pem.*
+# Certificados y claves de cliente (TLS mutuo), uno por servicio y por ESP32
+software/broker/security/certs/clientes/
