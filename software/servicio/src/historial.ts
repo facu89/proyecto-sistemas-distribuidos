@@ -3,11 +3,11 @@
  *
  * Los datos los guarda EMQX, no el servicio: la regla `guardar_historial` (software/broker/config/emqx.conf)
  * escribe en la tabla `historial_lecturas` de MySQL una lectura por sensor cada 10 minutos y borra las de
- * más de 14 días. El servicio solo las lee, con el usuario `lector`, que no puede hacer otra cosa que
- * SELECT sobre esa tabla (lo crea software/broker/mysql/actualizar.sh).
+ * más de 14 días. El servicio solo las lee, con su usuario de MySQL (mysql.ts).
  */
-import mysql from 'mysql2/promise'
+import type { RowDataPacket } from 'mysql2/promise'
 import type { Historial, PedidoHistorial, Punto } from './historial-tipos.ts'
+import type { Pool } from './mysql.ts'
 
 export type { Historial, PedidoHistorial, Punto }
 
@@ -49,23 +49,10 @@ export function leerPedido(
   return { ok: true, pedido: { nodo, desde, hasta, tipo } }
 }
 
-export type ConfigHistorial = { host: string; puerto: number; usuario: string; clave: string; base: string }
-
-export function conectarHistorial(config: ConfigHistorial) {
-  const pool = mysql.createPool({
-    host: config.host,
-    port: config.puerto,
-    user: config.usuario,
-    password: config.clave,
-    database: config.base,
-    connectionLimit: 2,
-    // ts es DATETIME en UTC (EMQX lo escribe con la hora del broker). Con 'Z', mysql2 manda los Date
-    // en UTC y lee los DATETIME como UTC, sin depender de la zona horaria de nadie.
-    timezone: 'Z',
-  })
-
-  const consultar: ConsultarHistorial = async ({ nodo, desde, hasta, tipo }) => {
-    const [filas] = await pool.query<mysql.RowDataPacket[]>(
+/** Consulta el historial con la conexión del servicio (mysql.ts). */
+export function crearHistorial(pool: Pool): ConsultarHistorial {
+  return async ({ nodo, desde, hasta, tipo }) => {
+    const [filas] = await pool.query<RowDataPacket[]>(
       `SELECT tipo, ts, valor FROM historial_lecturas
        WHERE nodo = ? AND ts >= ? AND ts < ? ${tipo ? 'AND tipo = ?' : ''}
        ORDER BY ts`,
@@ -78,6 +65,4 @@ export function conectarHistorial(config: ConfigHistorial) {
     }
     return { nodo, desde, hasta, series }
   }
-
-  return { consultar, cerrar: () => pool.end() }
 }

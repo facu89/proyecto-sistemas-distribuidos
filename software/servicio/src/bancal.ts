@@ -5,7 +5,7 @@
  * pide publicar órdenes con la función `publicar` que le pasan y avisa de cada cambio a quien escuche
  * (`alCambiar`). Así se prueba sin broker (bancal.test.ts) y main.ts solo conecta las piezas.
  */
-import { ACTUADORES, decidir, type Actuador, type Umbrales } from './reglas.ts'
+import { ACTUADORES, decidir, minutoLocal, validarUmbrales, type Actuador, type Umbrales } from './reglas.ts'
 
 export type Lectura = {
   /** `null` si el ESP32 publicó "nan" (el sensor no respondió). */
@@ -34,7 +34,12 @@ export type Modo = 'automatico' | 'manual'
 export const MODOS: readonly Modo[] = ['automatico', 'manual']
 
 export type Nodo = {
+  /** Se guarda en MySQL (configuracion.ts): sobrevive a un reinicio del servicio. */
   modo: Modo
+  /** Los rangos con que se aplican las reglas a este bancal: los propios o los de por defecto. */
+  umbrales: Umbrales
+  /** `true` si el bancal tiene rangos propios (cambiados desde la web); `false`, los de por defecto. */
+  umbralesPropios: boolean
   presencia: Presencia | null
   instantePresencia: number | null
   /** Por {tipo} de sensor: temperatura_suelo, temperatura_aire, humedad_aire, humedad_suelo, luz. */
@@ -59,26 +64,53 @@ export type Alerta = {
 export type Instantanea = {
   /** Si el servicio está conectado al broker. */
   broker: boolean
+  /** Los rangos por defecto (.env). Los de cada bancal están en `nodos[id].umbrales`. */
   umbrales: Umbrales
   nodos: Record<string, Nodo>
   /** Por tópico sin el `alertas/` inicial: `nodo_offline/bancal1esp1`, `servicio`... */
   alertas: Record<string, Alerta>
 }
 
+/** Modo y rangos de un bancal tal como se guardan. `umbrales: null` = los de por defecto del servicio. */
+export type ConfigNodo = { modo: Modo; umbrales: Umbrales | null }
+
+/**
+ * Dónde se guarda la configuración de los bancales (configuracion.ts, en MySQL). Está definido acá y no
+ * allá para que la web pueda importar los tipos de este archivo sin arrastrar mysql2.
+ */
+export type Almacen = {
+  cargar(): Promise<Record<string, ConfigNodo>>
+  guardar(nodoId: string, config: ConfigNodo): Promise<void>
+}
+
 export type Publicar = (nodoId: string, actuador: Actuador, encendido: boolean) => Promise<void>
 
 /** Resultado de un pedido de la web. `codigo` es el estado HTTP con que se responde si falla. */
-export type Resultado = { ok: true } | { ok: false; codigo: 404 | 409; error: string }
+export type Resultado = { ok: true } | { ok: false; codigo: 400 | 404 | 409 | 503; error: string }
 
 type Opciones = {
+  /** Los rangos por defecto, para los bancales que no tienen propios. */
   umbrales: Umbrales
   publicar: Publicar
+  /** Dónde se guardan el modo y los rangos de cada bancal (MySQL). Sin almacén, quedan solo en memoria. */
+  almacen?: Almacen | null
+  /** Zona horaria del horario de la luz. */
+  zonaHoraria?: string
   log?: (mensaje: string) => void
   ahora?: () => number
 }
 
-export function crearBancales({ umbrales, publicar, log = () => {}, ahora = Date.now }: Opciones) {
+export function crearBancales({
+  umbrales,
+  publicar,
+  almacen = null,
+  zonaHoraria = 'America/Argentina/Buenos_Aires',
+  log = () => {},
+  ahora = Date.now,
+}: Opciones) {
   const nodos: Record<string, Nodo> = {}
+  /** Lo que estaba guardado en MySQL, para los bancales que todavía no mandaron nada desde el arranque. */
+  let guardada: Record<string, ConfigNodo> = {}
   const alertas: Record<string, Alerta> = {}
   let broker = false
   const oyentes = new Set<(instantanea: Instantanea) => void>()
@@ -90,9 +122,12 @@ export function crearBancales({ umbrales, publicar, log = () => {}, ahora = Date
   }
 
   function nodo(id: string): Nodo {
+    const config = guardada[id]
     nodos[id] ??= {
-      // Cada nodo arranca en automático, también cuando se reinicia el servicio (el modo no se guarda).
-      modo: 'automatico',
+      // Con lo guardado en MySQL; un bancal nuevo arranca en automático y con los rangos por defecto
+      modo: config?.modo ?? 'automatico',
+      umbrales: config?.umbrales ?? umbrales,
+      umbralesPropios: (config?.umbrales ?? null) !== null,
       presencia: null,
       instantePresencia: null,
       lecturas: {},
@@ -131,7 +166,13 @@ export function crearBancales({ umbrales, publicar, log = () => {}, ahora = Date
   function aplicarRegla(nodoId: string, tipo: string, motivo: string) {
     const n = nodo(nodoId)
     const lectura = n.lecturas[tipo]
-    const decision = decidir(tipo, lectura?.valor ?? null, (a) => n.actuadores[a].ordenado, umbrales)
+    const decision = decidir(
+      tipo,
+      lectura?.valor ?? null,
+      (a) => n.actuadores[a].ordenado,
+      n.umbrales,
+      minutoLocal(ahora(), zonaHoraria),
+    )
     if (!decision) return
 
     const estadoActuador = n.actuadores[decision.actuador]
@@ -198,7 +239,49 @@ export function crearBancales({ umbrales, publicar, log = () => {}, ahora = Date
     return true
   }
 
+  /** Vuelve a aplicar todas las reglas del bancal con sus últimas lecturas (solo en automático). */
+  function reaplicar(nodoId: string, motivo: string) {
+    const n = nodo(nodoId)
+    if (n.modo !== 'automatico') return
+    for (const tipo of Object.keys(n.lecturas)) aplicarRegla(nodoId, tipo, `${motivo}, ${tipo}`)
+  }
+
+  /**
+   * Guarda el modo y los rangos del bancal en MySQL. Se guarda ANTES de aplicar el cambio: si MySQL no
+   * responde, el pedido falla y la web no muestra algo que se perdería en el próximo reinicio.
+   */
+  async function guardar(nodoId: string, config: ConfigNodo): Promise<Resultado> {
+    if (!almacen) return { ok: true }
+    try {
+      await almacen.guardar(nodoId, config)
+      guardada[nodoId] = config
+      return { ok: true }
+    } catch (error) {
+      log(`No se pudo guardar la configuración de ${nodoId}: ${error instanceof Error ? error.message : error}`)
+      return { ok: false, codigo: 503, error: 'No se pudo guardar el cambio en la base de datos. Probá de nuevo en un rato.' }
+    }
+  }
+
+  const configDe = (n: Nodo): ConfigNodo => ({ modo: n.modo, umbrales: n.umbralesPropios ? n.umbrales : null })
+
   return {
+    /**
+     * Toma el modo y los rangos guardados en MySQL (al arrancar, o cuando MySQL vuelve). Los bancales que
+     * ya están en memoria se actualizan y, si quedan en automático, se les vuelven a aplicar las reglas.
+     */
+    cargarConfiguracion(config: Record<string, ConfigNodo>) {
+      guardada = config
+      for (const [id, n] of Object.entries(nodos)) {
+        const c = config[id]
+        if (!c) continue
+        n.modo = c.modo
+        n.umbrales = c.umbrales ?? umbrales
+        n.umbralesPropios = c.umbrales !== null
+        reaplicar(id, 'configuración guardada')
+      }
+      avisar()
+    },
+
     /** Procesa un mensaje de `+/sensor/+`, `+/actuador/+/estado`, `+/presencia` o `alertas/#`. */
     alMensaje(topico: string, texto: string) {
       const partes = topico.split('/')
@@ -223,15 +306,36 @@ export function crearBancales({ umbrales, publicar, log = () => {}, ahora = Date
      * las últimas lecturas, sin esperar la próxima. Entre los umbrales de prender y apagar (histéresis)
      * el actuador sigue como lo dejó el modo manual.
      */
-    setModo(nodoId: string, modo: Modo): Resultado {
+    async setModo(nodoId: string, modo: Modo): Promise<Resultado> {
       const n = nodos[nodoId]
       if (!n) return { ok: false, codigo: 404, error: `No se conoce el nodo ${nodoId}` }
       if (n.modo === modo) return { ok: true }
+      const guardado = await guardar(nodoId, { ...configDe(n), modo })
+      if (!guardado.ok) return guardado
       n.modo = modo
       log(`${nodoId}: modo ${modo}`)
-      if (modo === 'automatico') {
-        for (const tipo of Object.keys(n.lecturas)) aplicarRegla(nodoId, tipo, `vuelta a automático, ${tipo}`)
+      reaplicar(nodoId, 'vuelta a automático')
+      avisar()
+      return { ok: true }
+    },
+
+    /**
+     * Cambia los rangos de un bancal; `null` vuelve a los de por defecto. Se validan, se guardan y, en
+     * automático, se aplican enseguida con las últimas lecturas (sin esperar la próxima).
+     */
+    async setUmbrales(nodoId: string, nuevos: Umbrales | null): Promise<Resultado> {
+      const n = nodos[nodoId]
+      if (!n) return { ok: false, codigo: 404, error: `No se conoce el nodo ${nodoId}` }
+      if (nuevos !== null) {
+        const problema = validarUmbrales(nuevos)
+        if (problema) return { ok: false, codigo: 400, error: problema }
       }
+      const guardado = await guardar(nodoId, { modo: n.modo, umbrales: nuevos })
+      if (!guardado.ok) return guardado
+      n.umbrales = nuevos ?? umbrales
+      n.umbralesPropios = nuevos !== null
+      log(`${nodoId}: rangos ${nuevos === null ? 'por defecto' : JSON.stringify(nuevos)}`)
+      reaplicar(nodoId, 'rangos nuevos')
       avisar()
       return { ok: true }
     },

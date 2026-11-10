@@ -10,6 +10,8 @@
  *   503 si el servicio no tiene acceso a MySQL.
  * - `POST /api/nodos/{nodoId}/modo` con `{"modo": "automatico" | "manual"}`.
  * - `POST /api/nodos/{nodoId}/actuadores/{tipo}` con `{"encendido": true | false}` (solo en manual).
+ * - `POST /api/nodos/{nodoId}/umbrales` con `{"umbrales": {...}}` (los rangos del bancal) o
+ *   `{"umbrales": null}` (volver a los de por defecto).
  * - Todo lo demás: los archivos del build de la web (`pnpm build` en diseño_pagina_web/web).
  *
  * Los POST manejan actuadores reales, así que solo se aceptan con `Content-Type: application/json` y
@@ -21,6 +23,7 @@ import http from 'node:http'
 import path from 'node:path'
 import { esActuador, esModo, type Bancales, type Resultado } from './bancal.ts'
 import type { Config } from './config.ts'
+import type { Umbrales } from './reglas.ts'
 import { leerPedido, type ConsultarHistorial } from './historial.ts'
 
 const MAX_CUERPO = 1024
@@ -148,6 +151,7 @@ function atenderHistorial(
 
 const RUTA_MODO = /^\/api\/nodos\/([^/]+)\/modo$/
 const RUTA_ACTUADOR = /^\/api\/nodos\/([^/]+)\/actuadores\/([^/]+)$/
+const RUTA_UMBRALES = /^\/api\/nodos\/([^/]+)\/umbrales$/
 
 function atenderPost(
   pedido: http.IncomingMessage,
@@ -163,7 +167,8 @@ function atenderPost(
 
   const modo = RUTA_MODO.exec(ruta)
   const actuador = RUTA_ACTUADOR.exec(ruta)
-  if (!modo && !actuador) return responder(404, 'No existe')
+  const rangos = RUTA_UMBRALES.exec(ruta)
+  if (!modo && !actuador && !rangos) return responder(404, 'No existe')
 
   if (!mismoOrigen(pedido)) {
     log(`POST ${ruta} rechazado: viene de otro origen (${pedido.headers.origin})`)
@@ -174,12 +179,19 @@ function atenderPost(
   }
 
   leerJson(pedido)
-    .then((cuerpo) => {
+    .then(async (cuerpo) => {
       let resultado: Resultado
       if (modo) {
         const valor = (cuerpo as { modo?: unknown } | null)?.modo
         if (!esModo(valor)) return responder(400, 'Se espera {"modo": "automatico" | "manual"}')
-        resultado = bancales.setModo(decodeURIComponent(modo[1]), valor)
+        resultado = await bancales.setModo(decodeURIComponent(modo[1]), valor)
+      } else if (rangos) {
+        const valor = (cuerpo as { umbrales?: unknown } | null)?.umbrales
+        const umbrales = valor === null ? null : aUmbrales(valor)
+        if (umbrales === undefined) {
+          return responder(400, 'Se espera {"umbrales": null} o los cuatro umbrales numéricos y luzHorario (null o {"desde", "hasta"})')
+        }
+        resultado = await bancales.setUmbrales(decodeURIComponent(rangos[1]), umbrales)
       } else {
         const tipo = decodeURIComponent(actuador![2])
         if (!esActuador(tipo)) return responder(404, `No existe el actuador ${tipo}`)
@@ -191,6 +203,26 @@ function atenderPost(
       else responder(resultado.codigo, resultado.error)
     })
     .catch((error: Error) => responder(400, error.message))
+}
+
+/**
+ * Arma los umbrales del cuerpo de un pedido, tomando solo los campos conocidos. Devuelve `undefined` si
+ * falta alguno o tiene otro tipo; los valores (márgenes, límites, formato de hora) los revisa bancal.ts.
+ */
+function aUmbrales(valor: unknown): Umbrales | undefined {
+  if (typeof valor !== 'object' || valor === null) return undefined
+  const v = valor as Record<string, unknown>
+  const numeros = ['riegoEncenderDebajoDe', 'riegoApagarDesde', 'ventiladorEncenderDesde', 'ventiladorApagarDebajoDe'] as const
+  if (!numeros.every((clave) => typeof v[clave] === 'number')) return undefined
+  const horario = v.luzHorario as { desde?: unknown; hasta?: unknown } | null | undefined
+  if (horario !== null && (typeof horario?.desde !== 'string' || typeof horario?.hasta !== 'string')) return undefined
+  return {
+    riegoEncenderDebajoDe: v.riegoEncenderDebajoDe as number,
+    riegoApagarDesde: v.riegoApagarDesde as number,
+    ventiladorEncenderDesde: v.ventiladorEncenderDesde as number,
+    ventiladorApagarDebajoDe: v.ventiladorApagarDebajoDe as number,
+    luzHorario: horario === null ? null : { desde: horario.desde as string, hasta: horario.hasta as string },
+  }
 }
 
 /**

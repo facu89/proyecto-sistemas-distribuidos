@@ -52,7 +52,7 @@ export default function App() {
         estado={estado}
         nodoId={bancal.nodoId}
         nodo={bancal.nodo}
-        umbrales={bancal.umbrales}
+        umbrales={bancal.nodo?.umbrales ?? bancal.umbrales}
         disponible={bancal.conexion === 'conectada' && bancal.broker}
       />
       <SelectorBancal lista={bancal.lista} nodoId={bancal.nodoId} onElegir={bancal.elegirNodo} />
@@ -70,7 +70,7 @@ export default function App() {
             <IconoFlecha hacia="arriba" />
             <span className="historial-abrir-texto">Historial</span>
           </button>
-          <Dashboard abierto={historial.abierto} alCerrar={historial.cerrar} nodoId={bancal.nodoId} umbrales={bancal.umbrales} />
+          <Dashboard abierto={historial.abierto} alCerrar={historial.cerrar} nodoId={bancal.nodoId} umbrales={bancal.nodo?.umbrales ?? bancal.umbrales} />
         </>
       )}
     </main>

@@ -50,6 +50,8 @@ Las aplica el servicio ([`software/servicio/src/reglas.ts`](software/servicio/sr
 - [ ] Relé del riego (bomba): está en curso en `pines.h` y `actuadores.cpp`.
 - [ ] Resolver la IP del broker por nombre (mDNS, por ejemplo `broker.local`) en vez de fijarla en `config.h`. Así no habría que volver a grabar el ESP32 al cambiar de red. El certificado tendría que incluir ese nombre.
 
+- [ ] **Si el servicio se cae, nadie aplica las reglas:** los actuadores quedan como estaban (el ESP32 no tiene reglas propias). Se podría dar al ESP32 un modo de respaldo: si no recibe órdenes ni ve al servicio por un rato, aplicar él unos rangos fijos (por ejemplo, cortar el riego tras N minutos).
+
 ### Broker y seguridad
 - [ ] Cerrar los puertos sin cifrar (1883 y 8083) cuando todos los clientes usen TLS.
 - [x] **Servidor accesible desde cualquier red** (`alumno16`): la web por HTTPS solo para el grupo (`tailscale serve`) y el ESP32 por un único puerto público (`tailscale funnel`). Ver [Servidor](software/broker/README.md#servidor).
@@ -70,10 +72,10 @@ EMQX hace un HTTP POST por cada mensaje o evento que elijamos. Sirve cuando del 
 - [x] Alertas `alertas/nodo_offline/{nodoId}` y `alertas/servicio` (retenidas, las publica el motor de reglas de EMQX). El servicio se suscribe a `alertas/#` y se las pasa a la web en la instantánea.
 - [ ] Mostrar las alertas en la web (hoy llegan por SSE pero el panel no las dibuja).
 - [x] Modo automático / manual desde la web: en manual, los interruptores del panel le piden la orden al servicio (ver [README del servicio](software/servicio/README.md#modo-automático--manual)).
-- [ ] **Modificar los rangos desde la web:** editar en el panel los umbrales del riego (20 % / 70 %) y del cooler (28 °C / 26 °C). Hoy solo se cambian en `software/servicio/.env` y reiniciando el servicio. Habría que validarlos y guardarlos (por ejemplo, en un JSON o en MySQL) para que sobrevivan a un reinicio.
+- [x] **Rangos por bancal desde la web:** riego, cooler y horario opcional de la luz; se guardan en MySQL (ver [README del servicio](software/servicio/README.md#rangos-por-bancal)).
 - [x] **Dashboard del historial:** botón **▲ Historial** en la web. Gráficos tiempo/magnitud y una tabla por sensor, con los datos de `historial_lecturas` que el servicio lee con un usuario de MySQL de solo lectura (ver [PLAN de la web](diseño_pagina_web/PLAN.md), Fase 6).
 - [x] El contenedor del servicio recibe solo sus claves (`secrets/servicio.env`), no todo `secrets/.env` (ver [Secretos](software/broker/README.md#secretos-quién-ve-qué)).
-- [ ] Guardar el modo de cada nodo: hoy vive en memoria y al reiniciar el servicio todos vuelven a automático.
+- [x] El modo de cada bancal se guarda en MySQL y sobrevive a un reinicio del servicio.
 - [ ] **Usuarios en la web:** hoy cualquiera que pueda abrirla puede cambiar el modo y manejar los actuadores. Hace falta antes de abrir el servicio a la red (`HTTP_HOST=0.0.0.0`).
 - [x] Varios bancales: botón "Vivero" abajo al centro de la web que despliega los bancales, con el estado de cada nodo (en línea / caído).
 - [ ] Un usuario MQTT por ESP32 (para sumar bancales reales).

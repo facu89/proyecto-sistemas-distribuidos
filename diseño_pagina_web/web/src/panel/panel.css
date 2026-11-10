@@ -251,10 +251,9 @@
   transition: background-color 0.2s ease;
 }
 
-.actuador[data-actuador='luz'] { --color-encendido: var(--color-luz); }
-.actuador[data-actuador='cooler'],
-.actuador[data-actuador='ventilador'] { --color-encendido: var(--color-ventilador); }
-.actuador[data-actuador='riego'] { --color-encendido: var(--color-riego); }
+:is(.actuador, .actuador-editor)[data-actuador='luz'] { --color-encendido: var(--color-luz); }
+:is(.actuador, .actuador-editor):is([data-actuador='cooler'], [data-actuador='ventilador']) { --color-encendido: var(--color-ventilador); }
+:is(.actuador, .actuador-editor)[data-actuador='riego'] { --color-encendido: var(--color-riego); }
 
 .actuador[data-encendido='true'] {
   --color: var(--color-encendido);
@@ -540,4 +539,214 @@ button.interruptor:disabled {
   .interruptor-perilla {
     transition: none;
   }
+}
+
+/* ---------- rangos: editor dentro del panel de actuadores ---------- */
+
+.actuador-regla {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.actuador-editar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin: -4px 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--panel-tenue);
+  cursor: pointer;
+}
+
+.actuador-editar svg {
+  width: 15px;
+  height: 15px;
+}
+
+.actuador-editar:hover:not(:disabled),
+.actuador-editar[aria-expanded='true'] {
+  background: rgb(0 0 0 / 0.07);
+  color: var(--panel-texto);
+}
+
+.actuador-editar:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.actuador-editor {
+  margin: -2px 0 6px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgb(255 255 255 / 0.7);
+  animation: rango-entrar 0.2s ease both;
+}
+
+@keyframes rango-entrar {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.rango-campos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.rango-campo {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--panel-tenue);
+}
+
+.rango-numero {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--panel-texto);
+}
+
+.rango-campo input {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid rgb(0 0 0 / 0.15);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--panel-texto);
+  font: inherit;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rango-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.rango-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-encendido);
+}
+
+/* Barra con dónde prende (color del actuador) y dónde apaga (gris); el hueco del medio es la histéresis */
+.banda {
+  position: relative;
+  height: 10px;
+  margin: 14px 0 20px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.06);
+}
+
+.banda-prende,
+.banda-apaga {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+}
+
+.banda-prende {
+  background: var(--color-encendido);
+}
+
+.banda-apaga {
+  background: var(--interruptor-apagado);
+}
+
+.banda-extremo {
+  position: absolute;
+  top: 13px;
+  left: 0;
+  font-size: 11px;
+  color: var(--panel-tenue);
+}
+
+.banda-extremo[data-fin] {
+  left: auto;
+  right: 0;
+}
+
+.rango-ayuda {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--panel-tenue);
+}
+
+.rango-problema {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: color-mix(in srgb, var(--color-error) 85%, black);
+}
+
+.rango-botones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.rango-boton {
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgb(0 0 0 / 0.12);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--panel-texto);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rango-boton[data-principal] {
+  border-color: var(--panel-texto);
+  background: var(--panel-texto);
+  color: #fff;
+}
+
+.rango-boton:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.rangos-propios {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  margin: 8px 4px 0;
+  font-size: 12px;
+  color: var(--panel-tenue);
+}
+
+.rangos-propios button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--panel-texto);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.rangos-propios button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }

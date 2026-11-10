@@ -20,7 +20,7 @@ Levanta cuatro contenedores, en orden:
 | `mysql` | Usuarios, ACL e historial de lecturas. |
 | `mysql-actualizar` | Corre y termina. Pone al día una base que ya tiene datos, **sin borrar nada** (ver abajo). |
 | `emqx` | El broker. Arranca cuando `certs` terminó bien y MySQL está listo. |
-| `servicio` | El [servicio central](../servicio/README.md): reglas de los actuadores, la web en **http://localhost:8080** y el historial (lo lee de MySQL con el usuario `lector`). Su imagen también compila la web. Arranca cuando EMQX está listo y `mysql-actualizar` terminó. |
+| `servicio` | El [servicio central](../servicio/README.md): reglas de los actuadores, la web en **http://localhost:8080** y el historial; guarda el modo y los rangos de cada bancal (usuario `servicio` de MySQL). Su imagen también compila la web. Arranca cuando EMQX está listo y `mysql-actualizar` terminó. |
 
 La primera vez tarda porque baja las imágenes y compila la web; después arranca en segundos. Si se cambia el código del servicio o de la web, hay que reconstruir la imagen: `docker compose up -d --build`.
 
@@ -32,11 +32,17 @@ MySQL corre `mysql/init.sql` y `mysql/02-init-users.sh` **solo cuando el volumen
 
 1. **Vuelve a correr `init.sql`:** crea las tablas que falten y agrega los permisos nuevos. Todo es `CREATE TABLE IF NOT EXISTS` e `INSERT IGNORE`, así que lo que ya está queda igual.
 2. **Vuelve a correr `02-init-users.sh`:** si cambió la clave de un usuario MQTT en `secrets/.env`, la actualiza.
-3. **Crea o actualiza el usuario `lector`**, con la clave `MYSQL_LECTOR_PASSWORD`. Solo puede hacer `SELECT` sobre `historial_lecturas`, y el servicio lo usa para el historial de la web.
+3. **Crea o actualiza el usuario `servicio` de MySQL**, con la clave `MYSQL_SERVICIO_PASSWORD` (`secrets/servicio.env`). Solo puede leer `historial_lecturas` (el historial de la web) y leer y escribir `configuracion_nodo` (modo y rangos de cada bancal). Reemplaza al usuario `lector`, que solo leía, y lo borra.
 
-**¿Por qué otro usuario?** El servicio atiende pedidos de la web. Si alguna vez una consulta tuviera un error, con `lector` lo peor que puede pasar es leer el historial. Con el usuario `emqx` podría leer las claves (hash) de `mqtt_user`, cambiar los permisos o borrar datos.
+**¿Por qué un usuario propio?** El servicio atiende pedidos de la web. Si alguna vez una consulta tuviera un error, con este usuario lo peor que puede pasar es leer el historial o cambiar la configuración de un bancal. Con el usuario `emqx` podría leer las claves (hash) de `mqtt_user`, cambiar los permisos o borrar el historial.
 
-Ojo: hoy el contenedor del servicio recibe todo `secrets/.env` (`env_file`), así que igual ve las otras claves. Separar eso está en los pendientes.
+Tablas de la base:
+
+| Tabla | Qué guarda | Quién escribe |
+|---|---|---|
+| `mqtt_user`, `mqtt_acl` | Usuarios MQTT y sus permisos | `init.sql` y `02-init-users.sh` |
+| `historial_lecturas` | Una lectura por sensor cada 10 minutos, 14 días | La regla `guardar_historial` de EMQX |
+| `configuracion_nodo` | Modo y rangos de cada bancal (`umbrales` en JSON; `NULL` = los de por defecto) | El servicio, cuando se cambian desde la web |
 
 Si una tabla ya existente necesita **cambiar de forma** (una columna nueva, por ejemplo), `CREATE TABLE IF NOT EXISTS` no la toca: hay que agregar un `ALTER TABLE` a `actualizar.sh`. Para empezar de cero, igual que antes:
 
@@ -56,7 +62,7 @@ Las claves están en dos archivos de `secrets/`, y cada contenedor recibe solo l
 | Archivo | Qué tiene | Lo ven |
 |---|---|---|
 | `secrets/.env` | Root de MySQL, usuario `emqx`, panel y cookie de EMQX, usuarios MQTT del ESP32, `admin` y `cliente_web`, `BROKER_IP` y `BROKER_DNS` | `certs`, `mysql`, `mysql-actualizar`, `emqx` |
-| `secrets/servicio.env` | Usuario y clave MQTT del servicio y la clave del usuario `lector` de MySQL | `servicio`, `mysql`, `mysql-actualizar` |
+| `secrets/servicio.env` | Usuario y clave MQTT del servicio y la clave de su usuario de MySQL (`MYSQL_SERVICIO_PASSWORD`) | `servicio`, `mysql`, `mysql-actualizar` |
 
 **¿Por qué el servicio tiene su propio archivo?** Es el contenedor que atiende la web: recibe pedidos de los navegadores y corre dependencias de npm. Si alguien encontrara una falla y pudiera ejecutar código ahí, leería todas las variables de entorno del proceso. Si el servicio viera todo `secrets/.env`, con eso tendría:
 
@@ -69,7 +75,7 @@ Con su propio archivo, lo peor que obtiene es lo que el servicio ya puede hacer:
 
 `mysql` y `mysql-actualizar` leen los dos archivos porque crean esos usuarios. Así cada clave está **en un solo lugar** y no puede pasar que dos copias queden distintas (como pasó con la clave del conector del historial).
 
-**Si ya tenías `secrets/.env` del formato anterior:** correr una vez `./separar_secretos.sh`. Mueve las tres variables a `servicio.env`, genera la de `lector` si faltaba y deja una copia del `.env` anterior en `secrets/.env.antes-de-separar`. En el servidor lo corre solo `desplegar.sh`.
+**Si ya tenías `secrets/` del formato anterior:** correr `./separar_secretos.sh` (se puede correr las veces que sea). Mueve las claves del servicio a `servicio.env`, renombra `MYSQL_LECTOR_PASSWORD` a `MYSQL_SERVICIO_PASSWORD`, genera esa clave si faltaba y deja una copia del `.env` anterior en `secrets/.env.antes-de-separar`. En el servidor lo corre solo `desplegar.sh`.
 
 Se podría ir más lejos: que EMQX tampoco vea la clave de root ni las de los clientes, o pasar las claves como archivos ([secrets de Docker](https://docs.docker.com/compose/how-tos/use-secrets/)) en vez de variables de entorno. Hoy el que está expuesto a la web es el servicio, y por eso es el que más importa.
 

@@ -51,7 +51,7 @@ services:
       dockerfile: software/servicio/Dockerfile
     container_name: servicio
     restart: unless-stopped
-    # Solo sus claves (usuario MQTT y lector de MySQL), no todo secrets/.env: es el contenedor que atiende
+    # Solo sus claves (usuario MQTT y usuario de MySQL), no todo secrets/.env: es el contenedor que atiende
     # la web, y si alguien lograra ejecutar código ahí no vería las claves de root, admin ni EMQX.
     env_file: secrets/servicio.env
     environment:
@@ -60,8 +60,8 @@ services:
       MQTT_CA: /certs/ca.pem
       # Escucha en todas las interfaces del contenedor; el "ports" de abajo decide quién llega
       HTTP_HOST: 0.0.0.0
-      # Historial (GET /api/historial): lo lee de MySQL con el usuario "lector", que solo puede hacer
-      # SELECT sobre historial_lecturas. La clave es MYSQL_LECTOR_PASSWORD (secrets/.env).
+      # MySQL: lee el historial (GET /api/historial) y guarda el modo y los rangos de cada bancal, con el
+      # usuario "servicio" (solo esas dos tablas). La clave es MYSQL_SERVICIO_PASSWORD (secrets/servicio.env).
       MYSQL_HOST: mysql
     ports:
       - "8080:8080"
@@ -74,7 +74,7 @@ services:
         condition: service_completed_successfully
 
   # Corre en cada "up" con MySQL listo y termina: pone al día la base sin borrar nada (tablas y
-  # permisos nuevos de init.sql, claves de los usuarios y el usuario "lector"). Ver mysql/actualizar.sh.
+  # permisos nuevos de init.sql, claves de los usuarios y el usuario "servicio" de MySQL). Ver mysql/actualizar.sh.
   # Usa la misma imagen de MySQL solo por el cliente "mysql": no levanta otra base.
   mysql-actualizar:
     image: mysql:8.4

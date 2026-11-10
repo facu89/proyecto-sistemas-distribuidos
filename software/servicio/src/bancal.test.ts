@@ -1,8 +1,16 @@
 import assert from 'node:assert/strict'
 import { beforeEach, describe, it } from 'node:test'
 import { crearBancales, type Bancales } from './bancal.ts'
+import type { Almacen, ConfigNodo } from './configuracion.ts'
+import type { Umbrales } from './reglas.ts'
 
-const UMBRALES = { riegoEncenderDebajoDe: 20, riegoApagarDesde: 70, ventiladorEncenderDesde: 28, ventiladorApagarDebajoDe: 26 }
+const UMBRALES: Umbrales = {
+  riegoEncenderDebajoDe: 20,
+  riegoApagarDesde: 70,
+  ventiladorEncenderDesde: 28,
+  ventiladorApagarDebajoDe: 26,
+  luzHorario: null,
+}
 
 let publicadas: string[]
 let bancales: Bancales
@@ -112,61 +120,61 @@ describe('estado real y mensajes raros', () => {
   })
 })
 
-describe('modo manual / automático', () => {
-  it('cada nodo arranca en automático', () => {
+describe('modo manual / automático', async () => {
+  it('cada nodo arranca en automático', async () => {
     bancales.alMensaje('bancal1esp1/sensor/luz', '1')
     assert.equal(bancales.instantanea().nodos.bancal1esp1.modo, 'automatico')
   })
 
-  it('en manual las lecturas se guardan pero no ordenan', () => {
+  it('en manual las lecturas se guardan pero no ordenan', async () => {
     bancales.alMensaje('bancal1esp1/presencia', 'online')
-    assert.deepEqual(bancales.setModo('bancal1esp1', 'manual'), { ok: true })
+    assert.deepEqual(await bancales.setModo('bancal1esp1', 'manual'), { ok: true })
     bancales.alMensaje('bancal1esp1/sensor/humedad_suelo', '10')
     assert.deepEqual(publicadas, [])
     assert.equal(bancales.instantanea().nodos.bancal1esp1.lecturas.humedad_suelo.valor, 10)
   })
 
-  it('en manual la web ordena; en automático se rechaza', () => {
+  it('en manual la web ordena; en automático se rechaza', async () => {
     bancales.alMensaje('bancal1esp1/presencia', 'online')
     const rechazo = bancales.ordenarManual('bancal1esp1', 'cooler', true)
     assert.equal(rechazo.ok, false)
     assert.equal(!rechazo.ok && rechazo.codigo, 409)
-    bancales.setModo('bancal1esp1', 'manual')
+    await bancales.setModo('bancal1esp1', 'manual')
     assert.deepEqual(bancales.ordenarManual('bancal1esp1', 'cooler', true), { ok: true })
     assert.deepEqual(publicadas, ['bancal1esp1/actuador/cooler/cmd=1'])
     assert.equal(bancales.instantanea().nodos.bancal1esp1.actuadores.cooler.ordenado, true)
   })
 
-  it('nodo desconocido: 404', () => {
-    const r = bancales.setModo('no-existe', 'manual')
+  it('nodo desconocido: 404', async () => {
+    const r = await bancales.setModo('no-existe', 'manual')
     assert.equal(!r.ok && r.codigo, 404)
   })
 
-  it('al volver a automático aplica las reglas con las últimas lecturas', () => {
+  it('al volver a automático aplica las reglas con las últimas lecturas', async () => {
     bancales.alMensaje('bancal1esp1/presencia', 'online')
-    bancales.setModo('bancal1esp1', 'manual')
+    await bancales.setModo('bancal1esp1', 'manual')
     bancales.alMensaje('bancal1esp1/sensor/luz', '0') // a oscuras
     bancales.alMensaje('bancal1esp1/sensor/temperatura_aire', '30')
     bancales.ordenarManual('bancal1esp1', 'luz', false)
     publicadas = []
-    bancales.setModo('bancal1esp1', 'automatico')
+    await bancales.setModo('bancal1esp1', 'automatico')
     assert.deepEqual(publicadas.sort(), ['bancal1esp1/actuador/cooler/cmd=1', 'bancal1esp1/actuador/luz/cmd=1'])
   })
 
-  it('al volver a automático, en la banda de histéresis queda lo que se puso a mano', () => {
+  it('al volver a automático, en la banda de histéresis queda lo que se puso a mano', async () => {
     bancales.alMensaje('bancal1esp1/presencia', 'online')
-    bancales.setModo('bancal1esp1', 'manual')
+    await bancales.setModo('bancal1esp1', 'manual')
     bancales.alMensaje('bancal1esp1/sensor/humedad_suelo', '50')
     bancales.ordenarManual('bancal1esp1', 'riego', true)
     publicadas = []
-    bancales.setModo('bancal1esp1', 'automatico')
+    await bancales.setModo('bancal1esp1', 'automatico')
     assert.deepEqual(publicadas, [])
     assert.equal(bancales.instantanea().nodos.bancal1esp1.actuadores.riego.ordenado, true)
   })
 
-  it('las órdenes manuales también se reenvían cuando el nodo se reconecta', () => {
+  it('las órdenes manuales también se reenvían cuando el nodo se reconecta', async () => {
     bancales.alMensaje('bancal1esp1/presencia', 'online')
-    bancales.setModo('bancal1esp1', 'manual')
+    await bancales.setModo('bancal1esp1', 'manual')
     bancales.ordenarManual('bancal1esp1', 'luz', true)
     publicadas = []
     bancales.alMensaje('bancal1esp1/presencia', 'online')
@@ -196,5 +204,103 @@ describe('alertas', () => {
     bancales.alMensaje('alertas/servicio', 'hola')
     bancales.alMensaje('alertas/servicio', '{"motivo": "x"}')
     assert.deepEqual(bancales.instantanea().alertas, {})
+  })
+})
+
+/** Almacén en memoria (en vez de MySQL), con la opción de fallar como si la base no respondiera. */
+function almacenDePrueba(inicial: Record<string, ConfigNodo> = {}) {
+  const datos = { ...inicial }
+  let fallar = false
+  const almacen: Almacen = {
+    cargar: async () => ({ ...datos }),
+    guardar: async (nodo, config) => {
+      if (fallar) throw new Error('MySQL no responde')
+      datos[nodo] = config
+    },
+  }
+  return { almacen, datos, fallar: (si: boolean) => (fallar = si) }
+}
+
+describe('rangos por bancal', () => {
+  const PROPIOS: Umbrales = { ...UMBRALES, riegoEncenderDebajoDe: 40, riegoApagarDesde: 60 }
+
+  it('cada bancal usa sus rangos y los otros siguen con los de por defecto', async () => {
+    const { almacen } = almacenDePrueba()
+    const b = crearBancales({ umbrales: UMBRALES, publicar: async (n, a, e) => void publicadas.push(`${n}/${a}=${e ? 1 : 0}`), almacen })
+    b.alMensaje('bancal1esp1/sensor/humedad_suelo', '30')
+    b.alMensaje('bancal2esp1/sensor/humedad_suelo', '30')
+    publicadas = []
+    assert.deepEqual(await b.setUmbrales('bancal1esp1', PROPIOS), { ok: true })
+    // 30 % ya está debajo de 40: el bancal 1 riega enseguida, sin esperar otra lectura
+    assert.deepEqual(publicadas, ['bancal1esp1/riego=1'])
+    assert.equal(b.instantanea().nodos.bancal1esp1.umbralesPropios, true)
+    assert.equal(b.instantanea().nodos.bancal2esp1.umbrales.riegoEncenderDebajoDe, 20)
+  })
+
+  it('rechaza rangos inválidos sin guardar nada', async () => {
+    const { almacen, datos } = almacenDePrueba()
+    const b = crearBancales({ umbrales: UMBRALES, publicar: async () => {}, almacen })
+    b.alMensaje('bancal1esp1/presencia', 'online')
+    const r = await b.setUmbrales('bancal1esp1', { ...UMBRALES, riegoEncenderDebajoDe: 50, riegoApagarDesde: 52 })
+    assert.equal(!r.ok && r.codigo, 400)
+    assert.deepEqual(datos, {})
+  })
+
+  it('null vuelve a los de por defecto', async () => {
+    const { almacen, datos } = almacenDePrueba()
+    const b = crearBancales({ umbrales: UMBRALES, publicar: async () => {}, almacen })
+    b.alMensaje('bancal1esp1/presencia', 'online')
+    await b.setUmbrales('bancal1esp1', PROPIOS)
+    await b.setUmbrales('bancal1esp1', null)
+    assert.equal(b.instantanea().nodos.bancal1esp1.umbralesPropios, false)
+    assert.deepEqual(datos.bancal1esp1, { modo: 'automatico', umbrales: null })
+  })
+
+  it('si MySQL falla, no cambia nada y responde 503', async () => {
+    const prueba = almacenDePrueba()
+    const b = crearBancales({ umbrales: UMBRALES, publicar: async () => {}, almacen: prueba.almacen })
+    b.alMensaje('bancal1esp1/presencia', 'online')
+    prueba.fallar(true)
+    const r = await b.setUmbrales('bancal1esp1', PROPIOS)
+    assert.equal(!r.ok && r.codigo, 503)
+    assert.equal(b.instantanea().nodos.bancal1esp1.umbralesPropios, false)
+    const m = await b.setModo('bancal1esp1', 'manual')
+    assert.equal(!m.ok && m.codigo, 503)
+    assert.equal(b.instantanea().nodos.bancal1esp1.modo, 'automatico')
+  })
+
+  it('el horario de la luz se evalúa en la hora local del bancal', async () => {
+    // 02:00 UTC = 23:00 en Argentina: fuera de 18:00-22:00
+    const b = crearBancales({
+      umbrales: { ...UMBRALES, luzHorario: { desde: '18:00', hasta: '22:00' } },
+      publicar: async (n, a, e) => void publicadas.push(`${n}/${a}=${e ? 1 : 0}`),
+      ahora: () => Date.parse('2026-11-10T02:00:00Z'),
+    })
+    publicadas = []
+    b.alMensaje('bancal1esp1/sensor/luz', '0')
+    assert.deepEqual(publicadas, ['bancal1esp1/luz=0'])
+  })
+})
+
+describe('configuración guardada (reinicio del servicio)', () => {
+  it('un bancal que vuelve a aparecer arranca con su modo y sus rangos guardados', async () => {
+    const PROPIOS: Umbrales = { ...UMBRALES, ventiladorEncenderDesde: 35, ventiladorApagarDebajoDe: 30 }
+    const { almacen } = almacenDePrueba({ bancal1esp1: { modo: 'manual', umbrales: PROPIOS } })
+    const b = crearBancales({ umbrales: UMBRALES, publicar: async (n, a, e) => void publicadas.push(`${n}/${a}=${e ? 1 : 0}`), almacen })
+    b.cargarConfiguracion(await almacen.cargar())
+    publicadas = []
+    b.alMensaje('bancal1esp1/sensor/temperatura_aire', '40')
+    const nodo = b.instantanea().nodos.bancal1esp1
+    assert.equal(nodo.modo, 'manual')
+    assert.equal(nodo.umbrales.ventiladorEncenderDesde, 35)
+    assert.deepEqual(publicadas, []) // en manual no ordena
+  })
+
+  it('el modo se guarda al cambiarlo', async () => {
+    const { almacen, datos } = almacenDePrueba()
+    const b = crearBancales({ umbrales: UMBRALES, publicar: async () => {}, almacen })
+    b.alMensaje('bancal1esp1/presencia', 'online')
+    await b.setModo('bancal1esp1', 'manual')
+    assert.deepEqual(datos.bancal1esp1, { modo: 'manual', umbrales: null })
   })
 })

@@ -1,8 +1,9 @@
-import { type ReactNode, useState } from 'react'
-import { cambiarModo, ordenarActuador, type Modo } from '../api'
+import { Fragment, type ReactNode, useState } from 'react'
+import { cambiarModo, cambiarUmbrales, ordenarActuador, type Modo } from '../api'
 import { estaPendiente, type Instantanea, type Nodo } from '../bancal'
 import type { Actuador, EstadoActuadores } from '../estado'
-import { IconoControles, IconoLuz, IconoRiego, IconoVentilador } from './iconos'
+import { EditorRango } from './EditorRango'
+import { IconoControles, IconoLapiz, IconoLuz, IconoRiego, IconoVentilador } from './iconos'
 import { PanelDesplegable } from './PanelDesplegable'
 import './panel.css'
 
@@ -11,6 +12,7 @@ type Props = {
   /** `null` si todavía no se conectó ningún bancal (los controles quedan deshabilitados). */
   nodoId: string | null
   nodo: Nodo | null
+  /** Los rangos del bancal elegido (propios o los de por defecto del servicio). */
   umbrales: Instantanea['umbrales'] | null
   /** Si hay conexión con el servicio y el servicio con el broker: sin eso no se puede pedir nada. */
   disponible: boolean
@@ -25,7 +27,13 @@ const ACTUADORES: {
   textos: [string, string]
   regla: (u: Umbrales | null) => string
 }[] = [
-  { id: 'luz', nombre: 'Luz', icono: <IconoLuz />, textos: ['Apagada', 'Encendida'], regla: () => 'Se prende a oscuras' },
+  {
+    id: 'luz',
+    nombre: 'Luz',
+    icono: <IconoLuz />,
+    textos: ['Apagada', 'Encendida'],
+    regla: (u) => (u?.luzHorario ? `Prende a oscuras de ${u.luzHorario.desde} a ${u.luzHorario.hasta}` : 'Se prende a oscuras'),
+  },
   {
     id: 'cooler',
     nombre: 'Cooler',
@@ -58,23 +66,27 @@ const MODOS: { id: Modo; nombre: string }[] = [
 export function PanelActuadores({ estado, nodoId, nodo, umbrales, disponible }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  // El actuador cuyo rango se está editando (uno a la vez)
+  const [editando, setEditando] = useState<Actuador | null>(null)
   // Al cambiar de bancal en el selector, el error del pedido anterior ya no corresponde.
   const [nodoDelError, setNodoDelError] = useState(nodoId)
   if (nodoDelError !== nodoId) {
     setNodoDelError(nodoId)
     setError(null)
+    setEditando(null)
   }
   const modo = nodo?.modo ?? 'automatico'
   const manual = modo === 'manual'
   const habilitado = disponible && nodo !== null && !enviando
   const encendidos = ACTUADORES.filter((a) => estado[a.id]).length
 
-  const pedir = async (pedido: (nodoId: string) => Promise<void>) => {
+  const pedir = async (pedido: (nodoId: string) => Promise<void>, alTerminar?: () => void) => {
     if (nodoId === null) return
     setEnviando(true)
     setError(null)
     try {
       await pedido(nodoId)
+      alTerminar?.()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -123,7 +135,8 @@ export function PanelActuadores({ estado, nodoId, nodo, umbrales, disponible }: 
           const textoRegla = regla(umbrales)
           const idNombre = `actuador-${id}`
           return (
-            <li key={id} className="actuador" data-actuador={id} data-encendido={encendido}>
+            <Fragment key={id}>
+            <li className="actuador" data-actuador={id} data-encendido={encendido}>
               <span className="actuador-icono">{icono}</span>
               <span className="actuador-texto">
                 <span id={idNombre} className="actuador-nombre">
@@ -134,7 +147,21 @@ export function PanelActuadores({ estado, nodoId, nodo, umbrales, disponible }: 
                   {pendiente && ' · pendiente'}
                 </span>
                 {textoRegla && (
-                  <span className="actuador-regla">{manual ? `En automático: ${textoRegla[0].toLowerCase()}${textoRegla.slice(1)}` : textoRegla}</span>
+                  <span className="actuador-regla">
+                    {manual ? `En automático: ${textoRegla[0].toLowerCase()}${textoRegla.slice(1)}` : textoRegla}
+                    {umbrales && (
+                      <button
+                        type="button"
+                        className="actuador-editar"
+                        aria-label={`Cambiar el rango de ${nombre.toLowerCase()}`}
+                        aria-expanded={editando === id}
+                        disabled={!habilitado}
+                        onClick={() => setEditando(editando === id ? null : id)}
+                      >
+                        <IconoLapiz />
+                      </button>
+                    )}
+                  </span>
                 )}
               </span>
               {manual ? (
@@ -157,9 +184,30 @@ export function PanelActuadores({ estado, nodoId, nodo, umbrales, disponible }: 
                 </span>
               )}
             </li>
+            {editando === id && umbrales && (
+              <li className="actuador-editor" data-actuador={id}>
+                <EditorRango
+                  actuador={id}
+                  umbrales={umbrales}
+                  enviando={enviando}
+                  alCancelar={() => setEditando(null)}
+                  alGuardar={(nuevos) => pedir((n) => cambiarUmbrales(n, nuevos), () => setEditando(null))}
+                />
+              </li>
+            )}
+            </Fragment>
           )
         })}
       </ul>
+
+      {nodo?.umbralesPropios && (
+        <p className="rangos-propios">
+          Este bancal usa rangos propios.
+          <button type="button" disabled={!habilitado} onClick={() => pedir((n) => cambiarUmbrales(n, null), () => setEditando(null))}>
+            Volver a los de por defecto
+          </button>
+        </p>
+      )}
 
       {error && (
         <p className="flotante-error" role="alert">

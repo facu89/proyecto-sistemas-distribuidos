@@ -1,6 +1,6 @@
 import path from 'node:path'
-import type { ConfigHistorial } from './historial.ts'
-import type { Umbrales } from './reglas.ts'
+import type { ConfigMysql } from './mysql.ts'
+import { validarUmbrales, type HorarioLuz, type Umbrales } from './reglas.ts'
 
 // Las rutas relativas se resuelven desde la carpeta del servicio (software/servicio), no desde donde se
 // lanzó el proceso, así funciona igual con `pnpm start` que con `node software/servicio/src/main.ts`.
@@ -21,6 +21,15 @@ function numero(nombre: string, porDefecto: number): number {
   return valor
 }
 
+/** "18:00-23:00" -> { desde: '18:00', hasta: '23:00' }; vacío -> null (la luz depende solo de si está oscuro). */
+function horario(nombre: string): HorarioLuz | null {
+  const crudo = process.env[nombre]?.trim()
+  if (!crudo) return null
+  const [desde, hasta] = crudo.split('-').map((h) => h.trim())
+  if (!desde || !hasta) throw new Error(`${nombre}="${crudo}" tiene que ser "HH:MM-HH:MM"`)
+  return { desde, hasta }
+}
+
 const ruta = (nombre: string, porDefecto: string) => path.resolve(CARPETA, texto(nombre, porDefecto))
 
 export function leerConfig() {
@@ -29,26 +38,24 @@ export function leerConfig() {
     riegoApagarDesde: numero('RIEGO_APAGAR_DESDE', 70),
     ventiladorEncenderDesde: numero('VENTILADOR_ENCENDER_DESDE', 28),
     ventiladorApagarDebajoDe: numero('VENTILADOR_APAGAR_DEBAJO_DE', 26),
+    luzHorario: horario('LUZ_HORARIO'),
   }
-  // Sin margen entre encender y apagar, el actuador prendería y apagaría con cada lectura.
-  if (umbrales.riegoEncenderDebajoDe >= umbrales.riegoApagarDesde) {
-    throw new Error('RIEGO_ENCENDER_DEBAJO_DE tiene que ser menor que RIEGO_APAGAR_DESDE')
-  }
-  if (umbrales.ventiladorApagarDebajoDe > umbrales.ventiladorEncenderDesde) {
-    throw new Error('VENTILADOR_APAGAR_DEBAJO_DE no puede ser mayor que VENTILADOR_ENCENDER_DESDE')
-  }
+  // Los mismos controles que cuando se cambian desde la web (márgenes mínimos, límites, formato de hora)
+  const problema = validarUmbrales(umbrales)
+  if (problema) throw new Error(`Valores por defecto de las reglas: ${problema}`)
 
-  // Historial (MySQL): solo si hay a dónde conectarse. En compose MYSQL_HOST=mysql; con `pnpm start`
-  // suelto no está y la web avisa que el historial no está disponible.
+  // MySQL: historial y configuración de cada bancal. Solo si hay a dónde conectarse: en compose
+  // MYSQL_HOST=mysql; con `pnpm start` suelto no está, la web avisa que el historial no está disponible
+  // y el modo y los rangos que se cambien no sobreviven a un reinicio.
   const mysqlHost = process.env.MYSQL_HOST?.trim()
-  const claveLector = process.env.MYSQL_LECTOR_PASSWORD?.trim()
-  const historial: ConfigHistorial | null =
-    mysqlHost && claveLector
+  const claveMysql = process.env.MYSQL_SERVICIO_PASSWORD?.trim()
+  const mysql: ConfigMysql | null =
+    mysqlHost && claveMysql
       ? {
           host: mysqlHost,
           puerto: numero('MYSQL_PUERTO', 3306),
-          usuario: texto('MYSQL_LECTOR_USER', 'lector'),
-          clave: claveLector,
+          usuario: texto('MYSQL_SERVICIO_USER', 'servicio'),
+          clave: claveMysql,
           base: texto('MYSQL_DATABASE', 'mqtt'),
         }
       : null
@@ -66,7 +73,9 @@ export function leerConfig() {
       webDist: ruta('WEB_DIST', '../../diseño_pagina_web/web/dist'),
     },
     umbrales,
-    historial,
+    mysql,
+    // El horario de la luz es en hora local del bancal; el servidor corre en UTC
+    zonaHoraria: texto('ZONA_HORARIA', 'America/Argentina/Buenos_Aires'),
   }
 }
 

@@ -41,7 +41,7 @@ INSERT IGNORE INTO mqtt_acl (username, permission, action, topic) VALUES
 -- Historial de lecturas de sensores. Lo llena la regla guardar_historial de EMQX (config/emqx.conf):
 --   * guarda una lectura por sensor (nodo + tipo) cada 10 minutos como mucho;
 --   * borra las filas de más de 14 días (acción borrar_historial_viejo).
--- La lee el servicio con el usuario "lector" (solo SELECT sobre esta tabla, ver actualizar.sh).
+-- La lee el servicio con su usuario de MySQL (solo SELECT sobre esta tabla, ver actualizar.sh).
 -- ts es la hora en que el broker recibió el mensaje, en UTC (la zona horaria del contenedor).
 CREATE TABLE IF NOT EXISTS historial_lecturas (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -54,4 +54,16 @@ CREATE TABLE IF NOT EXISTS historial_lecturas (
   KEY idx_sensor_ts (nodo, tipo, ts),
   -- Para buscar rápido la fila más vieja (MIN(ts))
   KEY idx_ts (ts)
+);
+
+-- Configuración de cada bancal que se cambia desde la web: el modo (automático / manual) y los rangos de
+-- los actuadores. La escribe y la lee el servicio (usuario "servicio" de MySQL, ver actualizar.sh) y la
+-- carga al arrancar, así nada se pierde si se reinicia.
+--   umbrales: JSON con los rangos propios del bancal; NULL = los valores por defecto del servicio (.env).
+CREATE TABLE IF NOT EXISTS configuracion_nodo (
+  nodo VARCHAR(100) NOT NULL,
+  modo ENUM('automatico', 'manual') NOT NULL DEFAULT 'automatico',
+  umbrales JSON NULL,
+  actualizado DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (nodo)
 );
