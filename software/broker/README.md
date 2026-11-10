@@ -143,6 +143,25 @@ El puerto 8883 exige que **el cliente también muestre un certificado** firmado 
 - **El ESP32:** `firmware/scripts/copiar_certificados.py` copia al compilar la CA y el certificado y la **clave privada** de su `NODO_ID` a `firmware/certs/` (no va a git), y quedan embebidos en el binario. Se graba con `pio run -t upload`. La clave privada queda en la memoria flash de la placa: quien tenga la placa física puede leerla (para evitarlo está la encriptación de flash del ESP32, pendiente).
 - **Un ESP32 nuevo:** agregar su nombre a `NODOS_TLS` (y su usuario a MySQL), `compose up` para que se genere el certificado, y compilar y grabar con ese `NODO_ID`.
 
+### Cómo probarlo y mostrarlo
+
+```bash
+software/broker/probar_tls.sh            # contra el broker local
+software/broker/probar_tls.sh servidor   # contra el servidor, por internet
+```
+
+Hace siete pruebas con `openssl`, solo el saludo TLS, sin iniciar sesión MQTT, así que no molesta al ESP32 ni al servicio:
+
+1. El broker muestra un certificado firmado por nuestra CA y con el nombre correcto (TLS 1.3, AES-256-GCM).
+2. Un cliente que no confía en nuestra CA lo rechaza.
+3. Con otro nombre, también lo rechaza (así se frena a un intermediario).
+4. Un cliente **sin certificado** queda afuera: el broker corta con `alert certificate required`.
+5. Con un certificado nuestro, el broker lo acepta.
+6. Un certificado de otra CA queda afuera (`bad certificate`).
+7. (Solo local) 1883 y 8083 cerrados.
+
+**Para mostrar que los datos viajan cifrados:** abrir Wireshark en la interfaz de la máquina del broker con el filtro `tcp.port == 8883`, y dejar que el ESP32 publique. Se ven el saludo TLS (*Client Hello*, *Server Hello*, *Certificate*) y después solo paquetes *Application Data* ilegibles: ni los tópicos, ni los valores, ni la clave MQTT aparecen en claro. Sin TLS, Wireshark decodificaría el MQTT y mostraría `bancal1esp1/sensor/temperatura_aire` y la clave del CONNECT.
+
 ## Servidor
 
 Todo corre en `alumno16`, el nodo de la cátedra en `sd-2026`. Es un contenedor Debian con Docker, sin puertos abiertos a internet. Se entra por SSH a través de `sd-2026`, la máquina del profe compartida a nuestra red de Tailscale:
