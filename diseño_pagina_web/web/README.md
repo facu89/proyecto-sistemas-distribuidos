@@ -13,7 +13,7 @@ pnpm lint      # oxlint
 
 **¿`:5173` o `:8080`?** Es la misma web. Para *usarla*, alcanza con `pnpm build` y abrir el servicio en `http://localhost:8080`. `pnpm dev` (`:5173`) es para *modificarla*: muestra cada cambio al instante, pero necesita el servicio corriendo para tener datos. El detalle está en el [README del servicio](../../software/servicio/README.md#por-qué-hay-dos-direcciones-8080-y-5173).
 
-Opción por URL: `?nodo=bancal2esp1` elige qué nodo mostrar (por defecto, el primero que informe el servicio).
+Bancales: el botón **Vivero** de abajo al centro muestra el bancal elegido y despliega una card con todos los nodos que conoce el servicio (y los que tienen una alerta de nodo caído), en verde si está en línea y en rojo si está caído. Al elegir uno se escribe en la URL (`?nodo=bancal2esp1`), así ese link abre directo en ese bancal. Sin `?nodo=`, se muestra el primero.
 
 Opciones de prueba en la URL (combinables): `?fps` muestra los cuadros por segundo, `?modelo=home.sin-compresion` carga el modelo sin comprimir y `?sin-sombras` apaga las sombras. Por ejemplo: `http://localhost:5173/?fps&sin-sombras`. Ver `src/depuracion.ts`.
 

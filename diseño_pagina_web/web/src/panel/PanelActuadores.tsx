@@ -8,7 +8,8 @@ import './panel.css'
 
 type Props = {
   estado: EstadoActuadores
-  nodoId: string
+  /** `null` si todavía no se conectó ningún bancal (los controles quedan deshabilitados). */
+  nodoId: string | null
   nodo: Nodo | null
   umbrales: Instantanea['umbrales'] | null
   /** Si hay conexión con el servicio y el servicio con el broker: sin eso no se puede pedir nada. */
@@ -57,16 +58,23 @@ const MODOS: { id: Modo; nombre: string }[] = [
 export function PanelActuadores({ estado, nodoId, nodo, umbrales, disponible }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  // Al cambiar de bancal en el selector, el error del pedido anterior ya no corresponde.
+  const [nodoDelError, setNodoDelError] = useState(nodoId)
+  if (nodoDelError !== nodoId) {
+    setNodoDelError(nodoId)
+    setError(null)
+  }
   const modo = nodo?.modo ?? 'automatico'
   const manual = modo === 'manual'
   const habilitado = disponible && nodo !== null && !enviando
   const encendidos = ACTUADORES.filter((a) => estado[a.id]).length
 
-  const pedir = async (pedido: () => Promise<void>) => {
+  const pedir = async (pedido: (nodoId: string) => Promise<void>) => {
+    if (nodoId === null) return
     setEnviando(true)
     setError(null)
     try {
-      await pedido()
+      await pedido(nodoId)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -98,7 +106,7 @@ export function PanelActuadores({ estado, nodoId, nodo, umbrales, disponible }: 
             className="modo-opcion"
             aria-pressed={modo === id}
             disabled={!habilitado}
-            onClick={() => modo !== id && pedir(() => cambiarModo(nodoId, id))}
+            onClick={() => modo !== id && pedir((n) => cambiarModo(n, id))}
           >
             {nombre}
           </button>
@@ -138,7 +146,7 @@ export function PanelActuadores({ estado, nodoId, nodo, umbrales, disponible }: 
                   aria-checked={pedido}
                   aria-labelledby={idNombre}
                   disabled={!habilitado}
-                  onClick={() => pedir(() => ordenarActuador(nodoId, id, !pedido))}
+                  onClick={() => pedir((n) => ordenarActuador(n, id, !pedido))}
                 >
                   <span className="interruptor-perilla" />
                 </button>

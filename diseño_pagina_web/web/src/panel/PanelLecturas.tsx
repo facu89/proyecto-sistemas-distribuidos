@@ -5,7 +5,8 @@ import { PanelDesplegable } from './PanelDesplegable'
 type Props = {
   conexion: Conexion
   broker: boolean
-  nodoId: string
+  /** `null` si todavía no se conectó ningún bancal. */
+  nodoId: string | null
   nodo: Nodo | null
 }
 
@@ -24,6 +25,7 @@ function estadoConexion({ conexion, broker, nodoId, nodo }: Props, ahora: number
   if (conexion === 'conectando') return { tono: 'alerta', texto: 'Conectando con el servicio…' }
   if (conexion === 'caida') return { tono: 'error', texto: 'Sin conexión con el servicio. Reintentando…' }
   if (!broker) return { tono: 'error', texto: 'El servicio no está conectado al broker' }
+  if (nodoId === null) return { tono: 'apagado', texto: 'Todavía no se conectó ningún bancal' }
   if (nodo?.presencia === 'online') return { tono: 'ok', texto: `${nodoId} en línea` }
   if (nodo?.presencia === 'offline') {
     return { tono: 'apagado', texto: `${nodoId} desconectado (${hace(nodo.instantePresencia, ahora)})` }

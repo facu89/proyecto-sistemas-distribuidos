@@ -49,9 +49,10 @@
 
 /* ---------- botón para abrir (en la home) ---------- */
 
+/* Abajo a la derecha: abajo al centro está el vivero (SelectorBancal) */
 .historial-abrir {
   position: fixed;
-  left: 50%;
+  right: 16px;
   bottom: max(16px, env(safe-area-inset-bottom));
   z-index: 10;
   display: inline-flex;
@@ -67,12 +68,11 @@
   color: #2f2a25;
   font: 600 15px/1 system-ui, -apple-system, 'Segoe UI', sans-serif;
   cursor: pointer;
-  transform: translateX(-50%);
   transition: transform 0.15s ease;
 }
 
 .historial-abrir:hover {
-  transform: translateX(-50%) translateY(-2px);
+  transform: translateY(-2px);
 }
 
 .historial-abrir:focus-visible {
@@ -455,6 +455,17 @@
 }
 
 @media (max-width: 600px) {
+  /* En el celular el botón es solo la flecha, para no pisarse con el vivero del centro */
+  .historial-abrir {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .historial-abrir-texto {
+    display: none;
+  }
+
   /* En columna y sin wrap: con wrap, el ancho de la "línea" lo decide el contenido y no la pantalla */
   .historial-filtros {
     flex-direction: column;

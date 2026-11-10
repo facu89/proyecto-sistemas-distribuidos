@@ -10,6 +10,7 @@ import { IconoFlecha } from './panel/iconos'
 import { Escena } from './escena/Escena'
 import { PanelActuadores } from './panel/PanelActuadores'
 import { PanelLecturas } from './panel/PanelLecturas'
+import { SelectorBancal } from './panel/SelectorBancal'
 
 export default function App() {
   // El estado llega del servicio por SSE (bancal.ts). La escena muestra lo que informó el ESP32 o,
@@ -54,17 +55,24 @@ export default function App() {
         umbrales={bancal.umbrales}
         disponible={bancal.conexion === 'conectada' && bancal.broker}
       />
-      <button
-        ref={botonHistorial}
-        type="button"
-        className="historial-abrir"
-        aria-expanded={historial.abierto}
-        onClick={historial.abrir}
-      >
-        <IconoFlecha hacia="arriba" />
-        Historial
-      </button>
-      <Dashboard abierto={historial.abierto} alCerrar={historial.cerrar} nodoId={bancal.nodoId} umbrales={bancal.umbrales} />
+      <SelectorBancal lista={bancal.lista} nodoId={bancal.nodoId} onElegir={bancal.elegirNodo} />
+      {/* Sin bancales no hay historial que mostrar */}
+      {bancal.nodoId !== null && (
+        <>
+          <button
+            ref={botonHistorial}
+            type="button"
+            className="historial-abrir"
+            aria-label="Historial"
+            aria-expanded={historial.abierto}
+            onClick={historial.abrir}
+          >
+            <IconoFlecha hacia="arriba" />
+            <span className="historial-abrir-texto">Historial</span>
+          </button>
+          <Dashboard abierto={historial.abierto} alCerrar={historial.cerrar} nodoId={bancal.nodoId} umbrales={bancal.umbrales} />
+        </>
+      )}
     </main>
   )
 }
