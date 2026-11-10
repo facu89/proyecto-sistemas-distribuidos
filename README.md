@@ -47,13 +47,13 @@ Las aplica el servicio ([`software/servicio/src/reglas.ts`](software/servicio/sr
 
 ### Firmware y actuadores
 - [x] Actuadores reales en el ESP32 (relés de luz y cooler) que publican el estado real en `{nodoId}/actuador/{tipo}/estado` (`1`/`0`, retenido). La web muestra "pendiente" mientras la orden y el estado no coinciden.
-- [ ] Relé del riego (bomba): está en curso en `pines.h` y `actuadores.cpp`.
+- [x] Relé del riego (bomba): funciona. Si la humedad del suelo marca 100 % fijo es porque el sensor está puenteado (se hizo para no activar la bomba en las pruebas): sacar el puente para que el riego automático actúe.
 - [ ] Resolver la IP del broker por nombre (mDNS, por ejemplo `broker.local`) en vez de fijarla en `config.h`. Así no habría que volver a grabar el ESP32 al cambiar de red. El certificado tendría que incluir ese nombre.
 
 - [ ] **Si el servicio se cae, nadie aplica las reglas:** los actuadores quedan como estaban (el ESP32 no tiene reglas propias). Se podría dar al ESP32 un modo de respaldo: si no recibe órdenes ni ve al servicio por un rato, aplicar él unos rangos fijos (por ejemplo, cortar el riego tras N minutos).
 
 ### Broker y seguridad
-- [ ] Cerrar los puertos sin cifrar (1883 y 8083) cuando todos los clientes usen TLS.
+- [ ] Cerrar MQTT sin cifrar (1883) y por WebSocket (8083) también en la configuración local: sacarlos de `compose.yaml` y desactivar esos listeners en `emqx.conf` (`listeners.tcp.default.enable = false`, ídem `ws`). En el servidor ya no se publican. Nadie los usa: el ESP32 y el servicio van por TLS.
 - [x] **Servidor accesible desde cualquier red** (`alumno16`): la web por HTTPS solo para el grupo (`tailscale serve`) y el ESP32 por un único puerto público (`tailscale funnel`). Ver [Servidor](software/broker/README.md#servidor).
 - [ ] **Borrar `software/broker/separar_secretos.sh`** cuando lo hayan corrido todos (cada integrante y el servidor): es una migración de una sola vez. Hay que sacar también su llamada en `desplegar.sh` y la mención en el README del broker, y borrar las copias `secrets/.env.antes-de-separar` (tienen claves) una vez comprobado que todo anda.
 - [ ] TLS mutuo en el puerto MQTT: que el ESP32 y el servicio presenten un certificado de cliente firmado por nuestra CA. Así el puerto público no aceptaría ni un intento de clave sin certificado.
@@ -62,16 +62,16 @@ Las aplica el servicio ([`software/servicio/src/reglas.ts`](software/servicio/sr
 Son consultas tipo SQL sobre los mensajes, con acciones: republicar, escribir en una base o llamar a un webhook. No reemplazan las reglas del servicio, porque la histéresis necesita recordar el estado anterior y el motor evalúa cada mensaje por separado. Sirven para:
 - [x] **Historial:** la regla `guardar_historial` guarda en MySQL (`historial_lecturas`) una lectura por sensor cada 10 minutos, hasta 14 días, sin pasar por el servicio. Se ve en el dashboard de la web. Borra solo las lecturas de más de 14 días (antes vaciaba la tabla entera).
 - [ ] **Filtrar en el broker** lecturas inválidas (`nan` o fuera de rango) antes de que lleguen a los suscriptores.
-- [ ] **Alertas simples** sin estado, por ejemplo republicar en `alertas/nodo_offline` cuando llega `offline` en `+/presencia`.
+- [x] **Alertas simples** sin estado: `alertas/nodo_offline/{nodoId}` y `alertas/servicio` (ver abajo).
 
 ### Webhooks de EMQX
 EMQX hace un HTTP POST por cada mensaje o evento que elijamos. Sirve cuando del otro lado hay algo que solo habla HTTP:
-- [ ] **Notificaciones:** mandar `alertas/#` a Telegram, Discord o un mail mediante su API HTTP.
+- [ ] **Notificaciones por Telegram en el servidor:** la regla existe y localmente está configurada, pero en el servidor falta `EMQX_ACTIONS__HTTP__TELEGRAM__PARAMETERS__PATH`. Es el aviso que más sirve: si se cae el servicio, la web no se ve y nadie se entera.
 - [ ] **Eventos del broker** (cliente conectado o desconectado, autenticación fallida) hacia un sistema de monitoreo o auditoría.
 
 ### Servicio y alertas
 - [x] Alertas `alertas/nodo_offline/{nodoId}` y `alertas/servicio` (retenidas, las publica el motor de reglas de EMQX). El servicio se suscribe a `alertas/#` y se las pasa a la web en la instantánea.
-- [ ] Mostrar las alertas en la web (hoy llegan por SSE pero el panel no las dibuja).
+- Descartado: mostrar las alertas en la web. La caída de un ESP32 ya se ve por su presencia (Last Will), y si se cae el servicio la web directamente no carga.
 - [x] Modo automático / manual desde la web: en manual, los interruptores del panel le piden la orden al servicio (ver [README del servicio](software/servicio/README.md#modo-automático--manual)).
 - [x] **Rangos por bancal desde la web:** riego, cooler y horario opcional de la luz; se guardan en MySQL (ver [README del servicio](software/servicio/README.md#rangos-por-bancal)).
 - [x] **Dashboard del historial:** botón **▲ Historial** en la web. Gráficos tiempo/magnitud y una tabla por sensor, con los datos de `historial_lecturas` que el servicio lee con un usuario de MySQL de solo lectura (ver [PLAN de la web](diseño_pagina_web/PLAN.md), Fase 6).
