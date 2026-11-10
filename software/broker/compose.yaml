@@ -51,8 +51,9 @@ services:
       dockerfile: software/servicio/Dockerfile
     container_name: servicio
     restart: unless-stopped
-    # Usuario y clave MQTT del servicio (MQTT_SERVICIO_USER y MQTT_SERVICIO_PASSWORD)
-    env_file: secrets/.env
+    # Solo sus claves (usuario MQTT y lector de MySQL), no todo secrets/.env: es el contenedor que atiende
+    # la web, y si alguien lograra ejecutar código ahí no vería las claves de root, admin ni EMQX.
+    env_file: secrets/servicio.env
     environment:
       # Dentro de la red de compose el broker se llama "emqx" (el certificado incluye ese nombre)
       MQTT_URL: mqtts://emqx:8883
@@ -79,7 +80,10 @@ services:
     image: mysql:8.4
     container_name: mysql-actualizar
     restart: "no"
-    env_file: secrets/.env
+    # Los dos: crea los usuarios de .env y los del servicio (servicio.env) con sus claves
+    env_file:
+      - secrets/.env
+      - secrets/servicio.env
     environment:
       MYSQL_DATABASE: mqtt
       MYSQL_HOST: mysql
@@ -94,8 +98,11 @@ services:
     image: mysql:8.4
     container_name: mysql
     restart: unless-stopped
-    # MYSQL_ROOT_PASSWORD y MYSQL_PASSWORD vienen de secrets/.env
-    env_file: secrets/.env
+    # MYSQL_ROOT_PASSWORD y MYSQL_PASSWORD vienen de secrets/.env; servicio.env, para crear el usuario
+    # MQTT del servicio la primera vez (02-init-users.sh)
+    env_file:
+      - secrets/.env
+      - secrets/servicio.env
     environment:
       MYSQL_DATABASE: mqtt
       MYSQL_USER: emqx

@@ -79,6 +79,9 @@ if ! remoto "test -f ~/$CARPETA/software/broker/secrets/.env"; then
     echo "ERROR: falta secrets/.env en el servidor. Ver software/broker/README.md, sección \"Servidor\"." >&2
     exit 1
 fi
+# Las claves del servicio van en su propio archivo (README.md, "Secretos: quién ve qué"). Si el servidor
+# todavía tiene el formato anterior, se separan (no hace nada si ya está hecho).
+remoto "bash ~/$CARPETA/software/broker/separar_secretos.sh"
 
 # 5. Levantar (o actualizar: compose solo recrea lo que cambió)
 echo "==> Levantando con docker compose (la primera vez tarda: compila la imagen del servicio)"

@@ -10,7 +10,7 @@ function texto(nombre: string, porDefecto?: string): string {
   const valor = process.env[nombre]?.trim()
   if (valor) return valor
   if (porDefecto !== undefined) return porDefecto
-  throw new Error(`Falta la variable ${nombre} (debería venir de software/broker/secrets/.env)`)
+  throw new Error(`Falta la variable ${nombre} (debería venir de software/broker/secrets/servicio.env)`)
 }
 
 function numero(nombre: string, porDefecto: number): number {

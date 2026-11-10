@@ -8,8 +8,8 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "start": "node --env-file=../broker/secrets/.env --env-file-if-exists=.env src/main.ts",
-    "dev": "node --watch --env-file=../broker/secrets/.env --env-file-if-exists=.env src/main.ts",
+    "start": "node --env-file=../broker/secrets/servicio.env --env-file-if-exists=.env src/main.ts",
+    "dev": "node --watch --env-file=../broker/secrets/servicio.env --env-file-if-exists=.env src/main.ts",
     "test": "node --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },

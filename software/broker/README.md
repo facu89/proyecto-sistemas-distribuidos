@@ -8,7 +8,7 @@ Solo hace falta Docker (o Podman). No hay que instalar Node, pnpm ni OpenSSL: to
 
 ```bash
 cd software/broker
-cp -r secrets.example secrets   # la primera vez, y completar secrets/.env (BROKER_IP incluida)
+cp -r secrets.example secrets   # la primera vez: completar secrets/.env (BROKER_IP incluida) y secrets/servicio.env
 docker compose up -d            # o: podman compose up -d
 ```
 
@@ -48,6 +48,30 @@ docker compose up -d
 `levantar.sh` es la forma anterior, que corre en la máquina y detecta sola las IPs. Sigue funcionando, pero necesita bash y OpenSSL instalados.
 
 > **Podman con SELinux (Fedora):** los montajes de `compose.yaml` llevan `,z` para que los contenedores puedan leer los archivos de la carpeta. Sin eso, EMQX no arranca (`emqx.conf is not found`) y MySQL no corre `init.sql` (`Permission denied`). En Docker sin SELinux, `,z` no hace nada.
+
+## Secretos: quién ve qué
+
+Las claves están en dos archivos de `secrets/`, y cada contenedor recibe solo los que necesita:
+
+| Archivo | Qué tiene | Lo ven |
+|---|---|---|
+| `secrets/.env` | Root de MySQL, usuario `emqx`, panel y cookie de EMQX, usuarios MQTT del ESP32, `admin` y `cliente_web`, `BROKER_IP` y `BROKER_DNS` | `certs`, `mysql`, `mysql-actualizar`, `emqx` |
+| `secrets/servicio.env` | Usuario y clave MQTT del servicio y la clave del usuario `lector` de MySQL | `servicio`, `mysql`, `mysql-actualizar` |
+
+**¿Por qué el servicio tiene su propio archivo?** Es el contenedor que atiende la web: recibe pedidos de los navegadores y corre dependencias de npm. Si alguien encontrara una falla y pudiera ejecutar código ahí, leería todas las variables de entorno del proceso. Si el servicio viera todo `secrets/.env`, con eso tendría:
+
+- **La clave de root de MySQL:** podría borrar el historial o los usuarios.
+- **El usuario `admin` de MQTT, que es superusuario:** podría publicar órdenes a cualquier bancal.
+- **La clave del ESP32:** podría hacerse pasar por él.
+- **La cookie de EMQX:** permite controlar el broker entero.
+
+Con su propio archivo, lo peor que obtiene es lo que el servicio ya puede hacer: sus tópicos MQTT y leer el historial. Además, las variables de entorno de un contenedor las ve cualquiera que corra `docker inspect`, y suelen terminar en logs o en reportes de errores.
+
+`mysql` y `mysql-actualizar` leen los dos archivos porque crean esos usuarios. Así cada clave está **en un solo lugar** y no puede pasar que dos copias queden distintas (como pasó con la clave del conector del historial).
+
+**Si ya tenías `secrets/.env` del formato anterior:** correr una vez `./separar_secretos.sh`. Mueve las tres variables a `servicio.env`, genera la de `lector` si faltaba y deja una copia del `.env` anterior en `secrets/.env.antes-de-separar`. En el servidor lo corre solo `desplegar.sh`.
+
+Se podría ir más lejos: que EMQX tampoco vea la clave de root ni las de los clientes, o pasar las claves como archivos ([secrets de Docker](https://docs.docker.com/compose/how-tos/use-secrets/)) en vez de variables de entorno. Hoy el que está expuesto a la web es el servicio, y por eso es el que más importa.
 
 ## Puertos
 
@@ -143,7 +167,7 @@ El script sube lo commiteado (HEAD) por SSH, sin usar GitHub, a `~/bancal` y cor
 
    `tailscale up` muestra un link: abrirlo con la cuenta dueña de la red. `--accept-dns=false` deja el DNS del servidor como está, porque no necesita los nombres de la red de Tailscale.
 
-2. **`secrets/.env` del servidor** (`~/bancal/software/broker/secrets/.env`): copiar `secrets.example/.env` con **claves nuevas y largas** (`openssl rand -base64 24`). El puerto MQTT es público, así que la clave es lo único que separa a un desconocido del broker. Además:
+2. **`secrets/.env` y `secrets/servicio.env` del servidor** (`~/bancal/software/broker/secrets/`): copiar los de `secrets.example/` con **claves nuevas y largas** (`openssl rand -base64 24`). El puerto MQTT es público, así que la clave es lo único que separa a un desconocido del broker. Además:
    - `BROKER_DNS=bancal.taile538b8.ts.net`;
    - `BROKER_IP` vacía.
 

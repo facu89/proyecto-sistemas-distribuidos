@@ -26,7 +26,7 @@ pnpm test       # tests de las reglas y del estado
 pnpm typecheck  # revisión de tipos
 ```
 
-El usuario y la clave MQTT se leen de `../broker/secrets/.env` (`MQTT_SERVICIO_USER` y `MQTT_SERVICIO_PASSWORD`), el mismo archivo con el que se cargan en MySQL. Lo demás tiene valores por defecto. Para cambiarlos, copiar `.env.example` como `.env`. Ahí están la URL del broker, la CA, el puerto HTTP y los umbrales de las reglas.
+El usuario y la clave MQTT se leen de `../broker/secrets/servicio.env` (`MQTT_SERVICIO_USER` y `MQTT_SERVICIO_PASSWORD`), el mismo archivo con el que se cargan en MySQL. Es el único archivo de secretos que ve el servicio (ver [Secretos](../broker/README.md#secretos-quién-ve-qué)). Lo demás tiene valores por defecto. Para cambiarlos, copiar `.env.example` como `.env`. Ahí están la URL del broker, la CA, el puerto HTTP y los umbrales de las reglas.
 
 ### ¿Por qué hay dos direcciones, `:8080` y `:5173`?
 
@@ -130,7 +130,7 @@ Responde `{"nodo", "desde", "hasta", "series": {"temperatura_aire": [[instante_m
 
 **De dónde salen los datos:** el servicio no guarda nada. Las lecturas las escribe EMQX en `historial_lecturas`, con la regla `guardar_historial`: una por sensor cada 10 minutos, y borra las de más de 14 días. El servicio las lee con el usuario `lector` de MySQL, que solo puede hacer `SELECT` sobre esa tabla (ver el [README del broker](../broker/README.md#cambios-en-la-base-sin-perder-el-historial)).
 
-- **Configuración:** el compose le pasa `MYSQL_HOST=mysql` y `MYSQL_LECTOR_PASSWORD` sale de `secrets/.env`.
+- **Configuración:** el compose le pasa `MYSQL_HOST=mysql` y `MYSQL_LECTOR_PASSWORD` sale de `secrets/servicio.env`.
 - **Sin MySQL:** con `pnpm start` suelto no hay `MYSQL_HOST`, así que la ruta responde 503 y la web avisa que el historial no está disponible.
 
 ## Archivos
