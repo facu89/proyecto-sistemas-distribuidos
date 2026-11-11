@@ -43,6 +43,8 @@ export function leerConfig() {
     ventiladorEncenderDesde: numero('VENTILADOR_ENCENDER_DESDE', 28),
     ventiladorApagarDebajoDe: numero('VENTILADOR_APAGAR_DEBAJO_DE', 26),
     luzHorario: horario('LUZ_HORARIO'),
+    riegoPulsoSegundos: numero('RIEGO_PULSO_SEGUNDOS', 5),
+    riegoEsperaLecturas: numero('RIEGO_ESPERA_LECTURAS', 2),
   }
   // Los mismos controles que cuando se cambian desde la web (márgenes mínimos, límites, formato de hora)
   const problema = validarUmbrales(umbrales)

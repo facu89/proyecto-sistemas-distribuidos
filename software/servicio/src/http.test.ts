@@ -5,7 +5,7 @@ import type { Config } from './config.ts'
 import type { PedidoHistorial } from './historial.ts'
 import { crearServidorHttp } from './http.ts'
 
-const UMBRALES = { riegoEncenderDebajoDe: 20, riegoApagarDesde: 70, ventiladorEncenderDesde: 28, ventiladorApagarDebajoDe: 26, luzHorario: null }
+const UMBRALES = { riegoEncenderDebajoDe: 20, riegoApagarDesde: 70, ventiladorEncenderDesde: 28, ventiladorApagarDebajoDe: 26, luzHorario: null, riegoPulsoSegundos: 5, riegoEsperaLecturas: 2 }
 const publicadas: string[] = []
 const bancales = crearBancales({
   umbrales: UMBRALES,

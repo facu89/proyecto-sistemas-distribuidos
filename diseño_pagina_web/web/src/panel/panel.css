@@ -765,3 +765,7 @@ button.interruptor:disabled {
   width: 8px;
   height: 8px;
 }
+
+.rango-pulso {
+  margin-top: 12px;
+}

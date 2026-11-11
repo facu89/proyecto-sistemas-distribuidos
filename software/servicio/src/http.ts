@@ -23,7 +23,7 @@ import http from 'node:http'
 import path from 'node:path'
 import { esActuador, esModo, type Bancales, type Resultado } from './bancal.ts'
 import type { Config } from './config.ts'
-import type { Umbrales } from './reglas.ts'
+import { PULSO_POR_DEFECTO, type Umbrales } from './reglas.ts'
 import { leerPedido, type ConsultarHistorial } from './historial.ts'
 
 const MAX_CUERPO = 1024
@@ -222,6 +222,9 @@ function aUmbrales(valor: unknown): Umbrales | undefined {
     ventiladorEncenderDesde: v.ventiladorEncenderDesde as number,
     ventiladorApagarDebajoDe: v.ventiladorApagarDebajoDe as number,
     luzHorario: horario === null ? null : { desde: horario.desde as string, hasta: horario.hasta as string },
+    // Opcionales en el pedido; los valores los revisa validarUmbrales
+    riegoPulsoSegundos: typeof v.riegoPulsoSegundos === 'number' ? v.riegoPulsoSegundos : PULSO_POR_DEFECTO.riegoPulsoSegundos,
+    riegoEsperaLecturas: typeof v.riegoEsperaLecturas === 'number' ? v.riegoEsperaLecturas : PULSO_POR_DEFECTO.riegoEsperaLecturas,
   }
 }
 

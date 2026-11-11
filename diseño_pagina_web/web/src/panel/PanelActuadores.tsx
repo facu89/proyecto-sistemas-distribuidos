@@ -46,7 +46,8 @@ const ACTUADORES: {
     nombre: 'Riego',
     icono: <IconoRiego />,
     textos: ['Apagado', 'Regando'],
-    regla: (u) => (u ? `Riega bajo ${u.riegoEncenderDebajoDe} %, para desde ${u.riegoApagarDesde} %` : ''),
+    regla: (u) =>
+      u ? `Riega de a ${u.riegoPulsoSegundos} s bajo ${u.riegoEncenderDebajoDe} %, para desde ${u.riegoApagarDesde} %` : '',
   },
 ]
 

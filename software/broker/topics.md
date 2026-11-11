@@ -113,13 +113,14 @@ El ESP32 aplica las reglas él mismo (`firmware/src/reglas.c`): así el bancal s
 
 | Tópico | Payload | Notas |
 |---|---|---|
-| `{nodoId}/config` | `{"v": 1731264000000, "modo": "automatico", "riego": [20, 70], "cooler": [28, 26], "luz": null, "tz": "<-03>3"}` | `riego`: prende bajo / apaga desde (%). `cooler`: prende desde / apaga bajo (°C). `luz`: `null` o `["18:00", "23:00"]`. `tz`: zona horaria POSIX para el horario. `v`: versión, crece con cada cambio |
+| `{nodoId}/config` | `{"v": 1731264000000, "modo": "automatico", "riego": [20, 70], "cooler": [28, 26], "pulso": [5, 2], "luz": null, "tz": "<-03>3"}` | `riego`: prende bajo / apaga desde (%). `cooler`: prende desde / apaga bajo (°C). `pulso`: segundos de cada riego y lecturas de espera después. `luz`: `null` o `["18:00", "23:00"]`. `tz`: zona horaria POSIX para el horario. `v`: versión, crece con cada cambio |
 | `{nodoId}/config/aplicada` | `{"v": 1731264000000, "modo": "manual", "efectivo": "automatico"}` | La versión que está usando y el modo en que funciona de verdad |
 | `servicio/conexion` | `online` / `offline` | El servicio publica `online` al conectarse y `offline` al cerrar; si muere, el broker publica `offline` por él (Last Will) |
 
 - **Retenido `config`:** el ESP32 recibe su configuración apenas se conecta, aunque el servicio no esté. Además la guarda en su memoria permanente (NVS): si se reinicia sin broker, sigue con la última.
 - **Manual sin servicio → automático:** en manual las órdenes vienen de la web a través del servicio. Si el servicio se cae (`servicio/conexion` = `offline`) o el ESP32 pierde el broker, nadie podría manejarlo, así que pasa a automático en el acto. Cuando el servicio vuelve, retoma el modo configurado.
 - **`config/aplicada`:** el servicio sabe si el bancal ya aplicó la última configuración (la web lo muestra) y en qué modo está de verdad. También le dice al servicio que ese ESP32 aplica las reglas: desde ahí el servicio deja de mandarle órdenes en automático. Con un firmware viejo, que no lo publica, el servicio sigue decidiendo como antes.
+- **Riego por pulsos**, en automático y en manual: la bomba prende `pulso[0]` segundos (5) y se apaga sola; después espera `pulso[1]` lecturas (2, unos 10 s) para que el agua llegue al sensor antes de poder regar de nuevo. En automático sigue dando pulsos mientras la humedad no llegue al umbral de apagar; en manual, cada "prender" es un pulso, y una orden durante la espera se ignora.
 - **La hora** (para el horario de la luz) la toma el ESP32 por NTP de internet. Sin hora, ignora el horario y prende la luz siempre que esté oscuro.
 
 ## Decisiones de diseño

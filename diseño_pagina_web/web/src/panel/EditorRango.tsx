@@ -1,6 +1,8 @@
 import { type ChangeEvent, useId, useState } from 'react'
 import {
   LIMITES_COOLER,
+  LIMITES_ESPERA,
+  LIMITES_PULSO,
   LIMITES_RIEGO,
   MARGEN_COOLER,
   MARGEN_RIEGO,
@@ -51,6 +53,14 @@ export function EditorRango({ actuador, umbrales, enviando, alGuardar, alCancela
             unidad="%"
           />
           <p className="rango-ayuda">Entre los dos sigue como estaba. Al menos {MARGEN_RIEGO} puntos de diferencia.</p>
+          <div className="rango-campos rango-pulso">
+            <Campo id={`${id}-pulso`} etiqueta="Riega de a" unidad="s" valor={borrador.riegoPulsoSegundos} limites={LIMITES_PULSO} paso={1} alCambiar={numero('riegoPulsoSegundos')} />
+            <Campo id={`${id}-espera`} etiqueta="Y espera" unidad="lecturas" valor={borrador.riegoEsperaLecturas} limites={LIMITES_ESPERA} paso={1} alCambiar={numero('riegoEsperaLecturas')} />
+          </div>
+          <p className="rango-ayuda">
+            Riega por pulsos, en automático y en manual: la bomba prende {borrador.riegoPulsoSegundos || '?'} s y después espera{' '}
+            {borrador.riegoEsperaLecturas || '?'} lecturas (unos {(borrador.riegoEsperaLecturas || 0) * 5} s) para que el agua llegue al sensor.
+          </p>
         </>
       )}
 

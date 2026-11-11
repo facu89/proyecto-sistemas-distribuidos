@@ -10,6 +10,8 @@ const UMBRALES: Umbrales = {
   ventiladorEncenderDesde: 28,
   ventiladorApagarDebajoDe: 26,
   luzHorario: null,
+  riegoPulsoSegundos: 5,
+  riegoEsperaLecturas: 2,
 }
 
 let publicadas: string[]
@@ -324,7 +326,7 @@ describe('reglas en el bancal (firmware que confirma la configuración)', () => 
     assert.equal(configs.length, 1)
     assert.deepEqual(
       { ...configs[0].json, v: 'x' },
-      { v: 'x', modo: 'automatico', riego: [20, 70], cooler: [28, 26], luz: null, tz: '<-03>3' },
+      { v: 'x', modo: 'automatico', riego: [20, 70], cooler: [28, 26], pulso: [5, 2], luz: null, tz: '<-03>3' },
     )
   })
 
@@ -368,5 +370,30 @@ describe('reglas en el bancal (firmware que confirma la configuración)', () => 
     const { b } = crear()
     b.alMensaje('bancal1esp1/config/aplicada', '{"v": 1, "modo": "manual", "efectivo": "automatico"}')
     assert.equal(b.instantanea().nodos.bancal1esp1.config.efectivo, 'automatico')
+  })
+})
+
+describe('riego por pulsos (reglas en el bancal)', () => {
+  it('la configuración lleva el pulso y la espera', () => {
+    const configs: Record<string, unknown>[] = []
+    const b = crearBancales({ umbrales: UMBRALES, publicar: async () => {}, publicarConfig: async (_n, json) => void configs.push(JSON.parse(json)) })
+    b.alMensaje('bancal1esp1/presencia', 'online')
+    assert.deepEqual(configs[0].pulso, [5, 2])
+  })
+
+  it('cuando la bomba se apaga sola, la orden manual de regar queda cumplida y no se reenvía', async () => {
+    const ordenes: string[] = []
+    const b = crearBancales({ umbrales: UMBRALES, publicar: async (_n, a, e) => void ordenes.push(`${a}=${e ? 1 : 0}`), publicarConfig: async () => {} })
+    b.alMensaje('bancal1esp1/presencia', 'online')
+    b.alMensaje('bancal1esp1/config/aplicada', '{"v": 1, "modo": "automatico", "efectivo": "automatico"}')
+    await b.setModo('bancal1esp1', 'manual')
+    b.ordenarManual('bancal1esp1', 'riego', true)
+    b.alMensaje('bancal1esp1/actuador/riego/estado', '1')
+    b.alMensaje('bancal1esp1/actuador/riego/estado', '0') // terminó el pulso de 5 s
+    const riego = b.instantanea().nodos.bancal1esp1.actuadores.riego
+    assert.equal(riego.ordenado, false)
+    ordenes.length = 0
+    b.alMensaje('bancal1esp1/presencia', 'online')
+    assert.deepEqual(ordenes, [])
   })
 })

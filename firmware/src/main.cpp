@@ -22,6 +22,10 @@ constexpr unsigned long REFRESCO_PANTALLA_MS = 500;  // para que el "hace N s" a
 Lecturas lecturas;
 Orden orden;
 ConfigBancal config;
+PulsoRiego pulso;
+// El riego "quiere agua" desde que la humedad baja del umbral hasta que llega al de apagar (histéresis):
+// mientras tanto riega de a pulsos. No es el estado del relé, que se prende y apaga en cada pulso.
+bool quiereAgua = false;
 Modo efectivoAnterior = Modo::Automatico;
 unsigned long ultimoRefresco = 0;
 bool estabaConectado = false;
@@ -55,10 +59,35 @@ void poner(const char *tipo, int decision, const char *motivo) {
   redPublicarEstado(tipo, decision == 1);
 }
 
+void prenderBomba(const char *motivo) {
+  pulsoEmpezar(&pulso, millis());
+  actuadoresAplicar("riego", "1");
+  Serial.printf("Riego: pulso de %d s (%s)\n", config.rangos.riegoPulsoS, motivo);
+  redPublicarEstado("riego", true);
+}
+
+void apagarBomba(const char *motivo) {
+  actuadoresAplicar("riego", "0");
+  Serial.printf("Riego: bomba apagada (%s); espera %d lecturas\n", motivo, pulso.esperaRestante);
+  redPublicarEstado("riego", false);
+}
+
+// Riego por pulsos: mientras quiera agua, un pulso cada vez que termina la espera.
+void aplicarRiego(const char *motivo) {
+  int decision = decidirRiego(lecturas.humedadSuelo, quiereAgua, &config.rangos);
+  if (decision >= 0) quiereAgua = decision == 1;
+  if (!quiereAgua && pulso.regando) {
+    pulsoCortar(&pulso, &config.rangos);
+    apagarBomba("llegó a la humedad buscada");
+  } else if (quiereAgua && pulsoPuedeEmpezar(&pulso)) {
+    prenderBomba(motivo);
+  }
+}
+
 void aplicarReglas(const char *motivo) {
   if (!lecturas.hayDatos) return;
   const Rangos &r = config.rangos;
-  poner("riego", decidirRiego(lecturas.humedadSuelo, actuadorPrendido(actuadorIndice("riego")), &r), motivo);
+  aplicarRiego(motivo);
   poner("cooler", decidirCooler(lecturas.temperaturaAire, actuadorPrendido(actuadorIndice("cooler")), &r), motivo);
   poner("luz", decidirLuz(lecturas.hayLuz, minutoLocal(), &r), motivo);
 }
@@ -66,6 +95,21 @@ void aplicarReglas(const char *motivo) {
 void ejecutar(const Orden &o) {
   if (modoEfectivo() != Modo::Manual) {
     Serial.printf("Orden ignorada (%s -> %s): el bancal está en automático\n", o.tipo, o.valor);
+    return;
+  }
+  // El riego también va por pulsos en manual: "1" riega un pulso (si no está esperando), "0" lo corta
+  if (strcmp(o.tipo, "riego") == 0 || strcmp(o.tipo, "bomba") == 0) {
+    if (strcmp(o.valor, "1") == 0) {
+      if (pulsoPuedeEmpezar(&pulso)) {
+        prenderBomba("orden manual");
+      } else {
+        Serial.printf("Riego: orden ignorada, %s\n", pulso.regando ? "ya está regando" : "esperando que el agua llegue al sensor");
+        redPublicarEstado("riego", pulso.regando);  // para que la web vuelva a mostrar el estado real
+      }
+    } else if (strcmp(o.valor, "0") == 0 && pulso.regando) {
+      pulsoCortar(&pulso, &config.rangos);
+      apagarBomba("orden manual");
+    }
     return;
   }
   int indice = actuadoresAplicar(o.tipo, o.valor);
@@ -89,9 +133,10 @@ void atenderConfig() {
   config = nueva;
   configGuardar(config);
   if (otraZona) configurarHora();
-  Serial.printf("Configuración v%llu: modo %s, riego %.0f/%.0f %%, cooler %.1f/%.1f C, luz %s\n",
+  Serial.printf("Configuración v%llu: modo %s, riego %.0f/%.0f %% (pulsos de %d s, espera %d lecturas), cooler %.1f/%.1f C, luz %s\n",
                 (unsigned long long)config.version, modoNombre(config.modo), config.rangos.riegoPrendeBajo,
-                config.rangos.riegoApagaDesde, config.rangos.coolerPrendeDesde, config.rangos.coolerApagaBajo,
+                config.rangos.riegoApagaDesde, config.rangos.riegoPulsoS, config.rangos.riegoEsperaLecturas,
+                config.rangos.coolerPrendeDesde, config.rangos.coolerApagaBajo,
                 config.rangos.luzConHorario ? "con horario" : "sin horario");
   publicarAplicada();
   if (modoEfectivo() == Modo::Automatico) aplicarReglas("configuración nueva");
@@ -141,6 +186,7 @@ void setup() {
   pantallaIniciar();
   sensoresIniciar();
   config = configCargar();
+  pulsoIniciar(&pulso);
   Serial.printf("Configuración guardada: v%llu, modo %s\n", (unsigned long long)config.version,
                 modoNombre(config.modo));
   redIniciar();
@@ -152,7 +198,10 @@ void loop() {
   if (nuevas) {
     imprimir(lecturas);
     redPublicarLecturas(lecturas);
+    pulsoNuevaLectura(&pulso);
   }
+  // El pulso de riego se corta por tiempo, en cualquier modo y aunque no haya red
+  if (pulsoVencio(&pulso, millis(), &config.rangos)) apagarBomba("terminó el pulso");
 
   bool ordenNueva = redActualizar(orden);
   atenderConfig();

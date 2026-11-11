@@ -64,6 +64,32 @@ int main(void) {
   v = rangosPorDefecto(); v.luzConHorario = true; v.luzDesde = 600; v.luzHasta = 600;
   ES(0, rangosProblema(&v) == NULL, "horario que empieza y termina igual no vale");
 
+  v = rangosPorDefecto(); v.riegoPulsoS = 0;
+  ES(0, rangosProblema(&v) == NULL, "pulso de 0 s no vale");
+  v = rangosPorDefecto(); v.riegoEsperaLecturas = 0;
+  ES(0, rangosProblema(&v) == NULL, "espera de 0 lecturas no vale");
+
+  // Riego por pulsos: 5 s prendido, después 2 lecturas de espera
+  Rangos d = rangosPorDefecto();
+  PulsoRiego p;
+  pulsoIniciar(&p);
+  ES(1, pulsoPuedeEmpezar(&p), "al arrancar puede regar");
+  pulsoEmpezar(&p, 1000);
+  ES(0, pulsoPuedeEmpezar(&p), "regando no puede empezar otro pulso");
+  ES(0, pulsoVencio(&p, 5999, &d), "a los 4,999 s el pulso sigue");
+  pulsoNuevaLectura(&p);  // una lectura durante el pulso no cuenta para la espera
+  ES(1, pulsoVencio(&p, 6000, &d), "a los 5 s el pulso termina");
+  ES(0, p.regando, "terminado el pulso, la bomba queda apagada");
+  ES(0, pulsoPuedeEmpezar(&p), "recién terminado tiene que esperar");
+  pulsoNuevaLectura(&p);
+  ES(0, pulsoPuedeEmpezar(&p), "después de 1 lectura sigue esperando");
+  pulsoNuevaLectura(&p);
+  ES(1, pulsoPuedeEmpezar(&p), "después de 2 lecturas puede volver a regar");
+  pulsoEmpezar(&p, 20000);
+  pulsoCortar(&p, &d);
+  ES(0, p.regando, "cortar el pulso apaga la bomba");
+  ES(0, pulsoPuedeEmpezar(&p), "cortado antes de tiempo también espera");
+
   printf("%d pruebas, %d fallas\n", pruebas, fallas);
   return fallas == 0 ? 0 : 1;
 }

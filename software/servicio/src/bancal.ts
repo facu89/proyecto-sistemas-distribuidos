@@ -213,7 +213,15 @@ export function crearBancales({
     if (texto !== '1' && texto !== '0') return false
     const estado = nodo(nodoId).actuadores[actuador]
     const real = texto === '1'
-    if (estado.real === real) return false
+    // Con reglas en el bancal, el riego va por pulsos: cuando la bomba se apaga sola, la orden manual
+    // de regar ya se cumplió (si no, la web la mostraría pendiente y se reenviaría al reconectar).
+    let cambio = false
+    if (actuador === 'riego' && !real && nodo(nodoId).reglasEnBancal && estado.ordenado) {
+      estado.ordenado = false
+      estado.instanteOrden = ahora()
+      cambio = true
+    }
+    if (estado.real === real) return cambio
     estado.real = real
     estado.instanteReal = ahora()
     return true
@@ -234,6 +242,8 @@ export function crearBancales({
       // Si el bancal aplica las reglas, solo se le reenvían las órdenes manuales
       if (n.reglasEnBancal && n.modo !== 'manual') return true
       for (const actuador of ACTUADORES) {
+        // Un pulso de riego no se repite solo al reconectar: solo si se pide de nuevo desde la web
+        if (n.reglasEnBancal && actuador === 'riego') continue
         const ordenado = n.actuadores[actuador].ordenado
         if (ordenado !== null) ordenar(nodoId, actuador, ordenado, 'reenvío: el nodo se conectó')
       }
@@ -255,6 +265,7 @@ export function crearBancales({
       modo: n.modo,
       riego: [u.riegoEncenderDebajoDe, u.riegoApagarDesde],
       cooler: [u.ventiladorEncenderDesde, u.ventiladorApagarDebajoDe],
+      pulso: [u.riegoPulsoSegundos, u.riegoEsperaLecturas],
       luz: u.luzHorario ? [u.luzHorario.desde, u.luzHorario.hasta] : null,
       tz: zonaPosix,
     })

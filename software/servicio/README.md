@@ -81,7 +81,7 @@ Cada bancal tiene sus rangos, que se cambian desde el panel de actuadores de la 
 
 | Actuador | Qué se configura | Controles |
 |---|---|---|
-| Riego | Prende bajo X %, apaga desde Y % | De 0 a 100 %, al menos 5 puntos entre X e Y |
+| Riego | Prende bajo X %, apaga desde Y %; riega de a N segundos y espera M lecturas | De 0 a 100 %, al menos 5 puntos entre X e Y; N y M enteros de 1 a 60 (por defecto 5 s y 2 lecturas) |
 | Cooler | Prende desde X °C, apaga bajo Y °C | De 0 a 50 °C, al menos 2 °C entre X e Y |
 | Luz | Horario opcional: a oscuras prende solo dentro de él (puede cruzar la medianoche) | Formato `HH:MM`, inicio y fin distintos. Sin horario, prende siempre que esté oscuro |
 

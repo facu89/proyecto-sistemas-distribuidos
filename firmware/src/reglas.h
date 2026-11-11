@@ -20,9 +20,12 @@ typedef struct {
   bool luzConHorario;       // luz: si es true, a oscuras prende solo dentro del horario
   int luzDesde;             // minutos desde la medianoche (hora local), inclusive
   int luzHasta;             // minutos desde la medianoche, exclusive (si es menor que desde, cruza la medianoche)
+  int riegoPulsoS;          // riego por pulsos: la bomba prende como mucho estos segundos...
+  int riegoEsperaLecturas;  // ...y después espera estas lecturas (de 5 s) antes de poder volver a regar
 } Rangos;
 
-// Los mismos valores por defecto que el servicio (.env): riego 20/70 %, cooler 28/26 °C, luz sin horario.
+// Los mismos valores por defecto que el servicio (.env): riego 20/70 %, cooler 28/26 °C, luz sin horario,
+// pulsos de riego de 5 s con 2 lecturas de espera.
 Rangos rangosPorDefecto(void);
 
 // Márgenes y límites, iguales a los del servicio (validarUmbrales en reglas.ts).
@@ -41,6 +44,25 @@ int decidirRiego(float humedadSuelo, bool actual, const Rangos *r);
 int decidirCooler(float temperaturaAire, bool actual, const Rangos *r);
 // `minutoLocal` < 0 si el ESP32 todavía no sabe la hora (sin NTP): se ignora el horario.
 int decidirLuz(bool hayLuz, int minutoLocal, const Rangos *r);
+
+// Riego por pulsos (en automático y en manual): cuando hay que regar, la bomba prende riegoPulsoS segundos y
+// se apaga; después espera riegoEsperaLecturas lecturas para que el agua llegue al sensor, y recién ahí se
+// puede volver a regar. Así no se inunda la maceta mientras el sensor todavía no notó el agua.
+typedef struct {
+  bool regando;           // la bomba está prendida en un pulso
+  unsigned long inicioMs; // millis() en que empezó el pulso
+  int esperaRestante;     // lecturas que faltan para poder volver a regar (0 = puede)
+} PulsoRiego;
+
+void pulsoIniciar(PulsoRiego *p);
+bool pulsoPuedeEmpezar(const PulsoRiego *p);
+void pulsoEmpezar(PulsoRiego *p, unsigned long ahoraMs);
+// true si el pulso se cumplió justo ahora: hay que apagar la bomba (y empieza la espera).
+bool pulsoVencio(PulsoRiego *p, unsigned long ahoraMs, const Rangos *r);
+// Apaga antes de tiempo (llegó a la humedad buscada u orden manual): también empieza la espera.
+void pulsoCortar(PulsoRiego *p, const Rangos *r);
+// Avisa que hubo una lectura nueva: descuenta la espera (las lecturas durante el pulso no cuentan).
+void pulsoNuevaLectura(PulsoRiego *p);
 
 #ifdef __cplusplus
 }

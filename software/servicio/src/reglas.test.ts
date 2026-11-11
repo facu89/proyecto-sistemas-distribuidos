@@ -8,6 +8,8 @@ const UMBRALES: Umbrales = {
   ventiladorEncenderDesde: 28,
   ventiladorApagarDebajoDe: 26,
   luzHorario: null,
+  riegoPulsoSegundos: 5,
+  riegoEsperaLecturas: 2,
 }
 const MEDIODIA = 12 * 60
 
@@ -101,6 +103,12 @@ describe('validarUmbrales', () => {
     assert.notEqual(con({ riegoApagarDesde: 101 }), null)
     assert.notEqual(con({ ventiladorEncenderDesde: 55 }), null)
     assert.notEqual(con({ riegoEncenderDebajoDe: Number.NaN }), null)
+  })
+  it('el pulso y la espera del riego (enteros de 1 a 60)', () => {
+    assert.equal(con({ riegoPulsoSegundos: 10, riegoEsperaLecturas: 6 }), null)
+    assert.notEqual(con({ riegoPulsoSegundos: 0 }), null)
+    assert.notEqual(con({ riegoPulsoSegundos: 2.5 }), null)
+    assert.notEqual(con({ riegoEsperaLecturas: 61 }), null)
   })
   it('el horario de la luz', () => {
     assert.equal(con({ luzHorario: { desde: '20:00', hasta: '02:00' } }), null)

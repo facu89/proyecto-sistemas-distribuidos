@@ -52,7 +52,8 @@ Las aplica el servicio ([`software/servicio/src/reglas.ts`](software/servicio/sr
 
 - [x] **Las reglas corren en el ESP32** (`firmware/src/reglas.c`): sigue funcionando aunque se caiga el servicio, el broker o internet. El servicio le manda modo y rangos en `{nodoId}/config` (retenido), que el ESP32 guarda en NVS. En manual, si pierde el servicio, pasa a automático en el acto. Ver [topics.md](software/broker/topics.md), sección 6.
 - [ ] **Probar las reglas del ESP32 con la placa:** el firmware compila y la lógica tiene tests (`firmware/test/`), y el lado del servicio se probó con un ESP32 simulado, pero falta grabarlo y probarlo con los relés: rangos nuevos, horario de la luz (NTP) y el paso a automático al apagar el servicio. Ojo: hasta grabarlo, el ESP32 tiene el firmware anterior y el servicio sigue decidiendo por él.
-- [ ] **Dinámica del riego por cantidad de agua:** limitar el riego en **segundos** (por ejemplo, regar N s y esperar a que el agua llegue al sensor antes de volver a decidir), en vez de regar hasta que la humedad llegue al umbral. Va en las reglas del ESP32 y como parámetro más de la configuración.
+- [x] **Riego por pulsos:** 5 s de bomba y 2 lecturas (≈10 s) de espera, en automático y en manual. Se cambian desde la web (editor del riego) sin regrabar la placa.
+- [ ] **Probar el caudal** para ajustar el pulso (¿5 s es la cantidad de agua adecuada?) y la espera (¿10 s alcanzan para que el agua llegue al sensor, o en automático riega de más?).
 
 ### Broker y seguridad
 - [x] MQTT sin cifrar (1883) y WebSocket (8083 y 8084) apagados en `emqx.conf`; en local, el panel (18083) y la web (8080) solo desde la misma máquina.

@@ -30,7 +30,18 @@ export type Umbrales = {
   ventiladorApagarDebajoDe: number
   /** Luz: si está, la lámpara solo prende a oscuras dentro de este horario; `null`, siempre que esté oscuro. */
   luzHorario: HorarioLuz | null
+  /**
+   * Riego por pulsos (lo aplica el ESP32, en automático y en manual): la bomba prende como mucho estos
+   * segundos y después espera `riegoEsperaLecturas` lecturas (de 5 s) antes de poder volver a regar.
+   */
+  riegoPulsoSegundos: number
+  riegoEsperaLecturas: number
 }
+
+/** Para los rangos guardados antes de que existieran los pulsos. */
+export const PULSO_POR_DEFECTO = { riegoPulsoSegundos: 5, riegoEsperaLecturas: 2 } as const
+export const LIMITES_PULSO: [number, number] = [1, 60]
+export const LIMITES_ESPERA: [number, number] = [1, 60]
 
 /** Diferencia mínima entre prender y apagar: con menos, el actuador prendería y apagaría a cada rato. */
 export const MARGEN_RIEGO = 5
@@ -94,6 +105,11 @@ export function validarUmbrales(u: Umbrales): string | null {
   if (u.ventiladorApagarDebajoDe < minC || u.ventiladorEncenderDesde > maxC) return `La temperatura va de ${minC} a ${maxC} °C`
   if (u.ventiladorEncenderDesde - u.ventiladorApagarDebajoDe < MARGEN_COOLER) {
     return `El cooler tiene que apagar al menos ${MARGEN_COOLER} °C debajo de donde prende`
+  }
+  const entero = (v: number, [min, max]: [number, number]) => Number.isInteger(v) && v >= min && v <= max
+  if (!entero(u.riegoPulsoSegundos, LIMITES_PULSO)) return `El pulso de riego va de ${LIMITES_PULSO[0]} a ${LIMITES_PULSO[1]} segundos (entero)`
+  if (!entero(u.riegoEsperaLecturas, LIMITES_ESPERA)) {
+    return `La espera del riego va de ${LIMITES_ESPERA[0]} a ${LIMITES_ESPERA[1]} lecturas (entero)`
   }
   if (u.luzHorario !== null) {
     if (aMinutos(u.luzHorario.desde) === null || aMinutos(u.luzHorario.hasta) === null) {

@@ -6,7 +6,7 @@
 import type { RowDataPacket } from 'mysql2/promise'
 import type { Almacen, ConfigNodo } from './bancal.ts'
 import type { Pool } from './mysql.ts'
-import { validarUmbrales, type Umbrales } from './reglas.ts'
+import { PULSO_POR_DEFECTO, validarUmbrales, type Umbrales } from './reglas.ts'
 
 export type { Almacen, ConfigNodo }
 
@@ -22,7 +22,8 @@ export function crearAlmacen(pool: Pool, log: (mensaje: string) => void = () => 
         // ese bancal vuelve a los valores por defecto en vez de usar algo que no tiene sentido.
         let umbrales = (fila.umbrales ?? null) as Umbrales | null
         if (umbrales !== null) {
-          umbrales = { ...umbrales, luzHorario: umbrales.luzHorario ?? null }
+          // Los guardados antes de que existieran el horario o los pulsos no los traen
+          umbrales = { ...PULSO_POR_DEFECTO, ...umbrales, luzHorario: umbrales.luzHorario ?? null }
           const problema = validarUmbrales(umbrales)
           if (problema) {
             log(`Los rangos guardados de ${fila.nodo} no sirven (${problema}): se usan los de por defecto`)

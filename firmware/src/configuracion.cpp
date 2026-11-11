@@ -64,6 +64,12 @@ const char *configInterpretar(const char *json, ConfigBancal &salida) {
   nueva.rangos.coolerPrendeDesde = cooler[0].as<float>();
   nueva.rangos.coolerApagaBajo = cooler[1].as<float>();
 
+  JsonArray pulso = doc["pulso"];
+  if (pulso.size() == 2) {
+    nueva.rangos.riegoPulsoS = pulso[0].as<int>();
+    nueva.rangos.riegoEsperaLecturas = pulso[1].as<int>();
+  }
+
   JsonVariant luz = doc["luz"];
   if (luz.isNull()) {
     nueva.rangos.luzConHorario = false;
