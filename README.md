@@ -52,7 +52,7 @@ Las aplica el servicio ([`software/servicio/src/reglas.ts`](software/servicio/sr
 
 - [x] **Las reglas corren en el ESP32** (`firmware/src/reglas.c`): sigue funcionando aunque se caiga el servicio, el broker o internet. El servicio le manda modo y rangos en `{nodoId}/config` (retenido), que el ESP32 guarda en NVS. En manual, si pierde el servicio, pasa a automático en el acto. Ver [topics.md](software/broker/topics.md), sección 6.
 - [x] **Reglas del ESP32 probadas con la placa** contra el servidor: orden manual, paso a automático al reiniciar el servicio (apagó la luz porque había luz) y vuelta a manual, y rangos nuevos del cooler aplicados al instante. Faltan el horario de la luz (de noche) y el riego por pulsos con agua.
-- [ ] **Calibrar la sonda de suelo:** `SUELO_SECO = 420` (medido), pero mojada lee ~2810 estable y `SUELO_MOJADO` sigue en 2100, así que todo lo que pase de 2100 marca 100 %. Medir la sonda en agua y poner ese valor.
+- [x] **Sonda de suelo calibrada:** `SUELO_SECO = 450` (al aire) y `SUELO_MOJADO = 2800` (empapada).
 - [x] **Riego por pulsos:** 5 s de bomba y 2 lecturas (≈10 s) de espera, en automático y en manual. Se cambian desde la web (editor del riego) sin regrabar la placa.
 - [ ] **Probar el caudal** para ajustar el pulso (¿5 s es la cantidad de agua adecuada?) y la espera (¿10 s alcanzan para que el agua llegue al sensor, o en automático riega de más?).
 
@@ -67,12 +67,14 @@ Las aplica el servicio ([`software/servicio/src/reglas.ts`](software/servicio/sr
 ### Motor de reglas de EMQX (*Rule Engine*)
 Son consultas tipo SQL sobre los mensajes, con acciones: republicar, escribir en una base o llamar a un webhook. No reemplazan las reglas del servicio, porque la histéresis necesita recordar el estado anterior y el motor evalúa cada mensaje por separado. Sirven para:
 - [x] **Historial:** la regla `guardar_historial` guarda en MySQL (`historial_lecturas`) una lectura por sensor cada 10 minutos, hasta 14 días, sin pasar por el servicio. Se ve en el dashboard de la web. Borra solo las lecturas de más de 14 días (antes vaciaba la tabla entera).
-- [ ] **Filtrar en el broker** lecturas inválidas (`nan` o fuera de rango) antes de que lleguen a los suscriptores.
+- [ ] **Filtrar en el broker** lecturas inválidas (`nan` o fuera de rango) antes de que lleguen a los suscriptores. De paso, la regla `guardar_historial` intenta convertir `nan` a número antes de filtrarlo y deja una advertencia en el log de EMQX (no guarda nada mal, pero ensucia).
 - [x] **Alertas simples** sin estado: `alertas/nodo_offline/{nodoId}` y `alertas/servicio` (ver abajo).
 
 ### Webhooks de EMQX
 EMQX hace un HTTP POST por cada mensaje o evento que elijamos. Sirve cuando del otro lado hay algo que solo habla HTTP:
-- [ ] **Notificaciones por Telegram en el servidor:** la regla existe y localmente está configurada, pero en el servidor falta `EMQX_ACTIONS__HTTP__TELEGRAM__PARAMETERS__PATH`. Es el aviso que más sirve: si se cae el servicio, la web no se ve y nadie se entera.
+- [x] **Telegram en el servidor:** avisa cuando se cae o vuelve el servicio (regla `vigilar_servicio`, directo desde EMQX) y cuando se conecta o desconecta un ESP32.
+- [ ] **Aviso si se cae el servidor entero:** ahí EMQX también está caído y no puede avisar. Un monitor externo gratuito (por ejemplo UptimeRobot) que pruebe `bancal.taile538b8.ts.net:443` cada 5 minutos y avise por Telegram o mail.
+- [ ] **Webhook de conexiones en el servidor:** generar `WEBHOOK_TOKEN` en `secrets/servicio.env` y el mismo en `EMQX_CONNECTORS__HTTP__SERVICIO__HEADERS` de `secrets/.env`, y desplegar. Sin eso el webhook queda desactivado (el resto anda igual).
 - [ ] **Eventos del broker** (cliente conectado o desconectado, autenticación fallida) hacia un sistema de monitoreo o auditoría.
 
 ### Servicio y alertas
