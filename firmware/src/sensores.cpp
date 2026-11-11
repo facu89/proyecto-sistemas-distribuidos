@@ -14,8 +14,8 @@ constexpr unsigned long CONVERSION_MS = 750;  // conversión de la DS18B20 a 12 
 // Calibración de la sonda de suelo: lectura cruda con la sonda seca al aire (0 %) y metida en
 // agua (100 %). La sonda y la resistencia a GND forman un divisor: a más agua, menos resistencia
 // en la sonda y más tensión en PIN_HUMEDAD_SUELO. Se miden con el monitor serie.
-constexpr int SUELO_SECO = 0;
-constexpr int SUELO_MOJADO = 2100;
+constexpr int SUELO_SECO = 450;
+constexpr int SUELO_MOJADO = 2800;
 constexpr int MUESTRAS_SUELO = 8;  // se promedian para bajar el ruido del ADC
 // La sonda se alimenta solo durante la medición: con corriente continua todo el tiempo, las puntas
 // se corroen por electrólisis. Antes de leer se espera a que la tensión se estabilice.
