@@ -264,4 +264,4 @@ Lo que no cubre:
 
 - **Cualquiera puede intentar conectarse.** El nombre `bancal.taile538b8.ts.net` es público: queda en los registros de certificados. La defensa son las claves largas y aleatorias. Todas las conexiones llegan a EMQX desde la misma dirección local, así que no se puede bloquear por IP.
 - **Una falla del propio EMQX:** conviene mantener la imagen actualizada.
-- **Más seguro todavía** (pendiente): pedir certificado de cliente en el puerto TLS (TLS mutuo). Así, sin un certificado firmado por nuestra CA, nadie llegaría ni a probar una clave.
+- **Ya cubierto con TLS mutuo:** el puerto pide certificado de cliente firmado por nuestra CA (ver [TLS mutuo](#tls-mutuo-certificado-de-cliente)), así que sin uno nadie llega ni a probar una clave.

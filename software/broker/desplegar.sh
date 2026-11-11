@@ -85,4 +85,14 @@ remoto "bash ~/$CARPETA/software/broker/separar_secretos.sh"
 
 # 5. Levantar (o actualizar: compose solo recrea lo que cambió)
 echo "==> Levantando con docker compose (la primera vez tarda: compila la imagen del servicio)"
-remoto "cd ~/$CARPETA/software/broker && docker compose -f compose.yaml -f compose.servidor.yaml up -d --build --remove-orphans && docker compose -f compose.yaml -f compose.servidor.yaml ps"
+remoto "cd ~/$CARPETA/software/broker && docker compose -f compose.yaml -f compose.servidor.yaml up -d --build --remove-orphans"
+
+# emqx.conf está montado como archivo: el contenedor sigue viendo el de la versión anterior (ahora en
+# ~/bancal.anterior), y compose no lo recrea porque la ruta no cambió. Si el archivo cambió, se reinicia EMQX
+# para que tome el nuevo (los clientes se reconectan solos en unos segundos).
+CONF=software/broker/config/emqx.conf
+if ! remoto "cmp -s ~/$CARPETA.anterior/$CONF ~/$CARPETA/$CONF"; then
+    echo "==> Cambió config/emqx.conf: reiniciando EMQX"
+    remoto "docker restart emqx >/dev/null && timeout 120 bash -c 'until docker exec emqx emqx ctl status 2>/dev/null | grep -q \"is started\"; do sleep 2; done'"
+fi
+remoto "cd ~/$CARPETA/software/broker && docker compose -f compose.yaml -f compose.servidor.yaml ps"

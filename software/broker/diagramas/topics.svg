@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="995" height="964" viewBox="0 0 995 964" font-family="Segoe UI, system-ui, -apple-system, Roboto, sans-serif">
+<rect width="995" height="964" fill="#ffffff"/>
+<text x="40" y="42" font-size="22" font-weight="700" fill="#1f2328">Árbol de tópicos</text>
+<text x="40" y="66" font-size="13" fill="#5a6270">Cada hoja es un tópico: quién publica → quién se suscribe, QoS y si va retenido (ret.). El color indica quién publica.</text>
+<path d="M250,310 L262,310 L262,145 L275,145" fill="none" stroke="#b4b9c2" stroke-width="1.5"/>
+<path d="M485,145 L497,145 L497,145 L510,145" fill="none" stroke="#b4b9c2" stroke-width="1.5"/>
+<path d="M250,310 L262,310 L262,244 L275,244" fill="none" stroke="#b4b9c2" stroke-width="1.5"/>
+<path d="M485,244 L497,244 L497,244 L510,244" fill="none" stroke="#b4b9c2" stroke-width="1.5"/>
+<path d="M720,244 L732,244 L732,211 L745,211" fill="none" stroke="#b4b9c2" stroke-width="1.5"/>
+<path d="M720,244 L732,244 L732,277 L745,277" fill="none" stroke="#b4b9c2" stroke-width="1.5"/>
+<path d="M250,310 L262,310 L262,343 L275,343" fill="none" stroke="#b4b9c2" stroke-width="1.5"/>
+<path d="M250,310 L262,310 L262,409 L275,409" fill="none" stroke="#b4b9c2" stroke-width="1.5"/>
+<path d="M485,409 L497,409 L497,409 L510,409" fill="none" stroke="#b4b9c2" stroke-width="1.5"/>
+<path d="M250,508 L262,508 L262,508 L275,508" fill="none" stroke="#b4b9c2" stroke-width="1.5"/>
+<path d="M250,640 L262,640 L262,607 L275,607" fill="none" stroke="#b4b9c2" stroke-width="1.5"/>
+<path d="M485,607 L497,607 L497,607 L510,607" fill="none" stroke="#b4b9c2" stroke-width="1.5"/>
+<path d="M250,640 L262,640 L262,673 L275,673" fill="none" stroke="#b4b9c2" stroke-width="1.5"/>
+<path d="M250,772 L262,772 L262,739 L275,739" fill="none" stroke="#b4b9c2" stroke-width="1.5"/>
+<path d="M250,772 L262,772 L262,805 L275,805" fill="none" stroke="#b4b9c2" stroke-width="1.5"/>
+<rect x="40" y="283" width="210" height="54" rx="10" fill="#f3f4f6" stroke="#d6dae0"/>
+<rect x="40" y="291" width="4" height="38" rx="2" fill="#9aa1ab"/>
+<text x="56" y="306" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">{nodoId}/</text>
+<text x="56" y="324" font-size="11" fill="#4b5563">un nivel por bancal · ej. bancal1esp1</text>
+<rect x="275" y="118" width="210" height="54" rx="10" fill="#f7f8fa" stroke="#d6dae0"/>
+<rect x="275" y="126" width="4" height="38" rx="2" fill="#c4c9d1"/>
+<text x="291" y="150" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">sensor/</text>
+<rect x="510" y="118" width="210" height="54" rx="10" fill="#e9f0fc" stroke="#d6dae0"/>
+<rect x="510" y="126" width="4" height="38" rx="2" fill="#2a56a5"/>
+<text x="526" y="141" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">{tipo}</text>
+<text x="526" y="159" font-size="11" fill="#4b5563">ESP32 → servicio · QoS 0</text>
+<rect x="275" y="217" width="210" height="54" rx="10" fill="#f7f8fa" stroke="#d6dae0"/>
+<rect x="275" y="225" width="4" height="38" rx="2" fill="#c4c9d1"/>
+<text x="291" y="249" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">actuador/</text>
+<rect x="510" y="217" width="210" height="54" rx="10" fill="#f7f8fa" stroke="#d6dae0"/>
+<rect x="510" y="225" width="4" height="38" rx="2" fill="#c4c9d1"/>
+<text x="526" y="240" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">{tipo}/</text>
+<text x="526" y="258" font-size="11" fill="#4b5563">luz, riego, cooler</text>
+<rect x="745" y="184" width="210" height="54" rx="10" fill="#e6f4ea" stroke="#d6dae0"/>
+<rect x="745" y="192" width="4" height="38" rx="2" fill="#22693f"/>
+<text x="761" y="207" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">cmd</text>
+<text x="761" y="225" font-size="11" fill="#4b5563">servicio → ESP32 · QoS 1</text>
+<rect x="745" y="250" width="210" height="54" rx="10" fill="#e9f0fc" stroke="#d6dae0"/>
+<rect x="745" y="258" width="4" height="38" rx="2" fill="#2a56a5"/>
+<text x="761" y="273" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">estado</text>
+<text x="761" y="291" font-size="11" fill="#4b5563">ESP32 → servicio · QoS 1 · ret.</text>
+<rect x="275" y="316" width="210" height="54" rx="10" fill="#e9f0fc" stroke="#d6dae0"/>
+<rect x="275" y="324" width="4" height="38" rx="2" fill="#2a56a5"/>
+<text x="291" y="339" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">presencia</text>
+<text x="291" y="357" font-size="11" fill="#4b5563">ESP32 / Last Will · QoS 1 · ret.</text>
+<rect x="275" y="382" width="210" height="54" rx="10" fill="#e6f4ea" stroke="#d6dae0"/>
+<rect x="275" y="390" width="4" height="38" rx="2" fill="#22693f"/>
+<text x="291" y="405" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">config</text>
+<text x="291" y="423" font-size="11" fill="#4b5563">servicio → ESP32 · QoS 1 · ret.</text>
+<rect x="510" y="382" width="210" height="54" rx="10" fill="#e9f0fc" stroke="#d6dae0"/>
+<rect x="510" y="390" width="4" height="38" rx="2" fill="#2a56a5"/>
+<text x="526" y="405" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">aplicada</text>
+<text x="526" y="423" font-size="11" fill="#4b5563">ESP32 → servicio · QoS 1 · ret.</text>
+<rect x="40" y="481" width="210" height="54" rx="10" fill="#f3f4f6" stroke="#d6dae0"/>
+<rect x="40" y="489" width="4" height="38" rx="2" fill="#9aa1ab"/>
+<text x="56" y="513" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">servicio/</text>
+<rect x="275" y="481" width="210" height="54" rx="10" fill="#e6f4ea" stroke="#d6dae0"/>
+<rect x="275" y="489" width="4" height="38" rx="2" fill="#22693f"/>
+<text x="291" y="504" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">conexion</text>
+<text x="291" y="522" font-size="11" fill="#4b5563">servicio / Last Will → todos los ESP32</text>
+<rect x="40" y="613" width="210" height="54" rx="10" fill="#f3f4f6" stroke="#d6dae0"/>
+<rect x="40" y="621" width="4" height="38" rx="2" fill="#9aa1ab"/>
+<text x="56" y="636" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">alertas/</text>
+<text x="56" y="654" font-size="11" fill="#4b5563">las genera el broker</text>
+<rect x="275" y="580" width="210" height="54" rx="10" fill="#f7f8fa" stroke="#d6dae0"/>
+<rect x="275" y="588" width="4" height="38" rx="2" fill="#c4c9d1"/>
+<text x="291" y="612" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">nodo_offline/</text>
+<rect x="510" y="580" width="210" height="54" rx="10" fill="#fcf1e3" stroke="#d6dae0"/>
+<rect x="510" y="588" width="4" height="38" rx="2" fill="#c46a12"/>
+<text x="526" y="603" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">{nodoId}</text>
+<text x="526" y="621" font-size="11" fill="#4b5563">regla · QoS 1 · ret. → servicio</text>
+<rect x="275" y="646" width="210" height="54" rx="10" fill="#fcf1e3" stroke="#d6dae0"/>
+<rect x="275" y="654" width="4" height="38" rx="2" fill="#c46a12"/>
+<text x="291" y="669" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">servicio</text>
+<text x="291" y="687" font-size="11" fill="#4b5563">regla · QoS 1 · ret. → servicio</text>
+<rect x="40" y="745" width="210" height="54" rx="10" fill="#f3f4f6" stroke="#d6dae0"/>
+<rect x="40" y="753" width="4" height="38" rx="2" fill="#9aa1ab"/>
+<text x="56" y="768" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">$events/</text>
+<text x="56" y="786" font-size="11" fill="#4b5563">solo el motor de reglas</text>
+<rect x="275" y="712" width="210" height="54" rx="10" fill="#eeeff2" stroke="#d6dae0"/>
+<rect x="275" y="720" width="4" height="38" rx="2" fill="#6b7280"/>
+<text x="291" y="735" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">client_connected</text>
+<text x="291" y="753" font-size="11" fill="#4b5563">interno del broker</text>
+<rect x="275" y="778" width="210" height="54" rx="10" fill="#eeeff2" stroke="#d6dae0"/>
+<rect x="275" y="786" width="4" height="38" rx="2" fill="#6b7280"/>
+<text x="291" y="801" font-size="14" font-weight="700" font-family="Consolas, Menlo, monospace" fill="#1f2328">client_disconnected</text>
+<text x="291" y="819" font-size="11" fill="#4b5563">interno del broker</text>
+<rect x="40" y="865" width="18" height="18" rx="4" fill="#e9f0fc" stroke="#2a56a5" stroke-width="2"/>
+<text x="66" y="878.5" font-size="12.5" fill="#1f2328">publica el ESP32</text>
+<rect x="203.2" y="865" width="18" height="18" rx="4" fill="#e6f4ea" stroke="#22693f" stroke-width="2"/>
+<text x="229.2" y="878.5" font-size="12.5" fill="#1f2328">publica el servicio</text>
+<rect x="386.5" y="865" width="18" height="18" rx="4" fill="#fcf1e3" stroke="#c46a12" stroke-width="2"/>
+<text x="412.5" y="878.5" font-size="12.5" fill="#1f2328">lo genera una regla de EMQX</text>
+<rect x="623.4" y="865" width="18" height="18" rx="4" fill="#eeeff2" stroke="#6b7280" stroke-width="2"/>
+<text x="649.4" y="878.5" font-size="12.5" fill="#1f2328">evento interno del broker</text>
+<text x="40" y="910" font-size="12.5" fill="#5a6270">Comodines: el servicio lee todos los nodos con + (+/sensor/+, +/actuador/+/estado, +/presencia, +/config/aplicada) y alertas/#.</text>
+<text x="40" y="928" font-size="12.5" fill="#5a6270">Cada ESP32 solo usa los de su nodoId ({nodoId}/actuador/+/cmd, {nodoId}/config) y servicio/conexion, que es el mismo para todos.</text>
+</svg>

@@ -1,84 +1,118 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1210" height="735" viewBox="0 0 1210 735" font-family="Segoe UI, system-ui, -apple-system, Roboto, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1300" height="805" viewBox="0 0 1300 805" font-family="Segoe UI, system-ui, -apple-system, Roboto, sans-serif">
 <defs><marker id="p-2a56a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2a56a5"/></marker><marker id="p-c46a12" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#c46a12"/></marker><marker id="p-6b7280" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/></marker></defs>
-<rect width="1210" height="735" fill="#ffffff"/>
-<text x="35" y="42" font-size="22" font-weight="700" fill="#1f2328" text-anchor="start">Arquitectura del sistema de bancales</text>
-<text x="35" y="66" font-size="13" font-weight="400" fill="#5a6270" text-anchor="start">Todo lo que pasa entre los ESP32 y el servicio va por el broker. Ningún componente MQTT le habla directamente a otro.</text>
-<rect x="375" y="95" width="550" height="530" rx="16" fill="#f7f8fa" stroke="#9aa1ab" stroke-width="1.5" stroke-dasharray="7 5"/>
-<text x="393" y="118" font-size="13" font-weight="700" fill="#4b5563" text-anchor="start">Servidor del grupo · docker compose up -d</text>
-<rect x="400" y="150" width="260" height="150" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.5"/>
-<rect x="400" y="150" width="260" height="6" rx="3" fill="#2a56a5"/>
-<text x="416" y="180" font-size="15" font-weight="700" fill="#1f2328" text-anchor="start">EMQX 5.10 (broker)</text>
-<text x="416" y="202" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">listener ssl :8883 (TLS, CA propia)</text>
-<text x="416" y="220" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">autenticación y ACL contra MySQL</text>
-<text x="416" y="238" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">motor de reglas: alertas, historial</text>
-<text x="416" y="256" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">y los dos webhooks</text>
-<rect x="730" y="150" width="160" height="110" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.5"/>
-<rect x="730" y="150" width="160" height="6" rx="3" fill="#6b7280"/>
-<text x="746" y="180" font-size="15" font-weight="700" fill="#1f2328" text-anchor="start">MySQL 8.4</text>
-<text x="746" y="202" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">usuarios y ACL</text>
-<text x="746" y="220" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">historial de lecturas</text>
-<rect x="400" y="440" width="260" height="140" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.5"/>
-<rect x="400" y="440" width="260" height="6" rx="3" fill="#22693f"/>
-<text x="416" y="470" font-size="15" font-weight="700" fill="#1f2328" text-anchor="start">Servicio (Node.js)</text>
-<text x="416" y="492" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">reglas de los actuadores</text>
-<text x="416" y="510" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">estado de los bancales</text>
-<text x="416" y="528" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">web 3D + API :8080</text>
-<text x="416" y="546" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">recibe el webhook directo</text>
-<rect x="730" y="470" width="160" height="95" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.5"/>
-<rect x="730" y="470" width="160" height="6" rx="3" fill="#9aa1ab"/>
-<text x="746" y="500" font-size="15" font-weight="700" fill="#1f2328" text-anchor="start">certs</text>
-<text x="746" y="522" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">genera el certificado</text>
-<text x="746" y="540" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">TLS al arrancar</text>
-<text x="393" y="608" font-size="11.5" font-weight="400" fill="#6b7280" text-anchor="start">Volúmenes: emqx-data, mysql-data · Configuración, certificados y claves: archivos del host</text>
-<text x="40" y="140" font-size="12" font-weight="700" fill="#6b7280" text-anchor="start">DISPOSITIVOS</text>
-<rect x="40" y="160" width="230" height="130" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.5"/>
-<rect x="40" y="160" width="230" height="6" rx="3" fill="#2a56a5"/>
-<text x="56" y="190" font-size="15" font-weight="700" fill="#1f2328" text-anchor="start">ESP32 · bancal1esp1</text>
-<text x="56" y="212" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">sensores, relés y pantalla</text>
-<text x="56" y="230" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">publica: sensor, estado,</text>
-<text x="56" y="248" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">presencia (+ Last Will)</text>
-<text x="56" y="266" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">recibe: actuador/+/cmd</text>
-<rect x="40" y="445" width="230" height="120" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.5"/>
-<rect x="40" y="445" width="230" height="6" rx="3" fill="#22693f"/>
-<text x="56" y="475" font-size="15" font-weight="700" fill="#1f2328" text-anchor="start">Navegador</text>
-<text x="56" y="497" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">web 3D: lecturas, actuadores,</text>
-<text x="56" y="515" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">modo automático / manual,</text>
-<text x="56" y="533" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">avisos de conexión</text>
-<text x="980" y="112" font-size="12" font-weight="700" fill="#6b7280" text-anchor="start">EXTERNO</text>
-<rect x="980" y="160" width="195" height="130" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.5"/>
-<rect x="980" y="160" width="195" height="6" rx="3" fill="#c46a12"/>
-<text x="996" y="190" font-size="15" font-weight="700" fill="#1f2328" text-anchor="start">API de Telegram</text>
-<text x="996" y="212" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">api.telegram.org</text>
-<text x="996" y="230" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">avisos al grupo del bot</text>
-<text x="996" y="248" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">reglas: vigilar_servicio</text>
-<text x="996" y="266" font-size="12" font-weight="400" fill="#4b5563" text-anchor="start">y notificar_telegram</text>
-<path d="M270,205 L398,205" fill="none" stroke="#2a56a5" stroke-width="2" marker-end="url(#p-2a56a5)"/>
-<path d="M400,245 L272,245" fill="none" stroke="#2a56a5" stroke-width="2" marker-end="url(#p-2a56a5)"/>
-<text x="320" y="196" font-size="11" font-weight="700" fill="#2a56a5" text-anchor="middle">MQTT/TLS :8883</text>
-<text x="320" y="264" font-size="11" font-weight="400" fill="#2a56a5" text-anchor="middle">por WiFi</text>
-<path d="M455,440 L455,302" fill="none" stroke="#2a56a5" stroke-width="2" marker-end="url(#p-2a56a5)"/>
-<path d="M490,300 L490,438" fill="none" stroke="#2a56a5" stroke-width="2" marker-end="url(#p-2a56a5)"/>
-<text x="502" y="362" font-size="11" font-weight="700" fill="#2a56a5" text-anchor="start">MQTT/TLS</text>
-<text x="502" y="378" font-size="11" font-weight="400" fill="#2a56a5" text-anchor="start" font-family="Consolas, Menlo, monospace">mqtts://emqx:8883</text>
-<text x="502" y="394" font-size="11" font-weight="400" fill="#2a56a5" text-anchor="start">usuario "servicio"</text>
-<path d="M630,300 L630,438" fill="none" stroke="#c46a12" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#p-c46a12)"/>
-<text x="642" y="352" font-size="11" font-weight="700" fill="#c46a12" text-anchor="start">webhook directo</text>
-<text x="642" y="368" font-size="11" font-weight="400" fill="#c46a12" text-anchor="start" font-family="Consolas, Menlo, monospace">POST /api/webhooks/conexiones</text>
-<text x="642" y="384" font-size="11" font-weight="400" fill="#c46a12" text-anchor="start">Authorization: Bearer token</text>
-<text x="642" y="400" font-size="11" font-weight="400" fill="#c46a12" text-anchor="start">(cada conexión y desconexión)</text>
-<path d="M660,205 L728,205" fill="none" stroke="#6b7280" stroke-width="2" marker-end="url(#p-6b7280)"/>
-<text x="694" y="197" font-size="11" font-weight="700" fill="#6b7280" text-anchor="middle">SQL</text>
-<path d="M620,150 L620,135 L1077,135 L1077,158" fill="none" stroke="#c46a12" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#p-c46a12)"/>
-<text x="690" y="128" font-size="11" font-weight="700" fill="#c46a12" text-anchor="start">webhook por regla · HTTPS POST</text>
-<path d="M270,490 L398,490" fill="none" stroke="#6b7280" stroke-width="2" marker-end="url(#p-6b7280)"/>
-<path d="M400,530 L272,530" fill="none" stroke="#6b7280" stroke-width="2" marker-end="url(#p-6b7280)"/>
-<text x="320" y="481" font-size="11" font-weight="700" fill="#6b7280" text-anchor="middle">HTTP :8080</text>
-<text x="320" y="549" font-size="11" font-weight="400" fill="#6b7280" text-anchor="middle">estado por SSE</text>
-<path d="M35,668 L75,668" fill="none" stroke="#2a56a5" stroke-width="2" marker-end="url(#p-2a56a5)"/>
-<text x="85" y="672" font-size="12.5" font-weight="400" fill="#1f2328" text-anchor="start">MQTT sobre TLS (único puerto MQTT abierto: 8883)</text>
-<path d="M446.6,668 L486.6,668" fill="none" stroke="#c46a12" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#p-c46a12)"/>
-<text x="496.6" y="672" font-size="12.5" font-weight="400" fill="#1f2328" text-anchor="start">webhook HTTP (lo inicia el broker)</text>
-<path d="M764.4000000000001,668 L804.4000000000001,668" fill="none" stroke="#6b7280" stroke-width="2" marker-end="url(#p-6b7280)"/>
-<text x="814.4000000000001" y="672" font-size="12.5" font-weight="400" fill="#1f2328" text-anchor="start">otro tráfico (HTTP, SQL)</text>
-<text x="35" y="704" font-size="12" font-weight="400" fill="#5a6270" text-anchor="start">Puertos publicados: 8883 (MQTT/TLS), 18083 (panel de EMQX), 8080 (web). 1883 y 8083, sin cifrar, están apagados.</text>
+<rect width="1300" height="805" fill="#ffffff"/>
+<text x="30" y="40" font-size="22" font-weight="700" fill="#1f2328" text-anchor="start">Arquitectura del sistema de bancales</text>
+<text x="30" y="63" font-size="13" font-weight="400" fill="#5a6270" text-anchor="start">Los ESP32 y el servicio solo se comunican por el broker. Desde internet, lo único que se alcanza es el puerto MQTT con TLS mutuo.</text>
+<rect x="290" y="80" width="760" height="640" rx="16" fill="#fbfbfc" stroke="#9aa1ab" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="306" y="104" font-size="13" font-weight="700" fill="#4b5563" text-anchor="start">Servidor alumno16 (nodo de sd-2026) · sin puertos abiertos: todo en 127.0.0.1</text>
+<rect x="510" y="122" width="525" height="586" rx="14" fill="#f3f5f8" stroke="#b4b9c2" stroke-width="1.2" stroke-dasharray="4 4"/>
+<text x="526" y="680" font-size="12" font-weight="700" fill="#4b5563" text-anchor="start">Docker Compose: compose.yaml + compose.servidor.yaml</text>
+<text x="526" y="697" font-size="11" font-weight="400" fill="#6b7280" text-anchor="start">volúmenes emqx-data y mysql-data · claves y certificados: archivos del host (no van a git)</text>
+<rect x="305" y="165" width="180" height="125" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.5"/>
+<rect x="305" y="165" width="180" height="6" rx="3" fill="#2a56a5"/>
+<text x="319" y="194" font-size="14" font-weight="700" fill="#1f2328" text-anchor="start">Tailscale Funnel</text>
+<text x="319" y="215" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">:443, el único público</text>
+<text x="319" y="232" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">pasa el TCP sin descifrar</text>
+<text x="319" y="249" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">→ 127.0.0.1:8884</text>
+<text x="319" y="266" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">elige la máquina por SNI</text>
+<rect x="305" y="460" width="180" height="125" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.5"/>
+<rect x="305" y="460" width="180" height="6" rx="3" fill="#6b7280"/>
+<text x="319" y="489" font-size="14" font-weight="700" fill="#1f2328" text-anchor="start">Tailscale Serve</text>
+<text x="319" y="510" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">:8443, HTTPS</text>
+<text x="319" y="527" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">solo red de Tailscale</text>
+<text x="319" y="544" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">→ 127.0.0.1:8090</text>
+<rect x="305" y="610" width="180" height="80" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.5"/>
+<rect x="305" y="610" width="180" height="6" rx="3" fill="#9aa1ab"/>
+<text x="319" y="639" font-size="14" font-weight="700" fill="#1f2328" text-anchor="start">SSH</text>
+<text x="319" y="660" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">túnel al panel de EMQX</text>
+<text x="319" y="677" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">(127.0.0.1:18084)</text>
+<rect x="540" y="160" width="270" height="160" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.5"/>
+<rect x="540" y="160" width="270" height="6" rx="3" fill="#2a56a5"/>
+<text x="554" y="189" font-size="15" font-weight="700" fill="#1f2328" text-anchor="start">EMQX 5.10 (broker)</text>
+<text x="554" y="210" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">listener ssl :8883 con TLS mutuo</text>
+<text x="554" y="227" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">usuario = CN del certificado</text>
+<text x="554" y="244" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">auth: clave + client ID = usuario</text>
+<text x="554" y="261" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">ACL contra MySQL (no_match = deny)</text>
+<text x="554" y="278" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">reglas: alertas, historial, webhooks</text>
+<rect x="855" y="160" width="160" height="120" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.5"/>
+<rect x="855" y="160" width="160" height="6" rx="3" fill="#6b7280"/>
+<text x="869" y="189" font-size="15" font-weight="700" fill="#1f2328" text-anchor="start">MySQL 8.4</text>
+<text x="869" y="210" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">usuarios y ACL</text>
+<text x="869" y="227" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">historial de lecturas</text>
+<text x="869" y="244" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">modo y rangos por bancal</text>
+<rect x="540" y="465" width="270" height="150" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.5"/>
+<rect x="540" y="465" width="270" height="6" rx="3" fill="#22693f"/>
+<text x="554" y="494" font-size="15" font-weight="700" fill="#1f2328" text-anchor="start">Servicio (Node.js)</text>
+<text x="554" y="515" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">estado, modo y rangos de cada bancal</text>
+<text x="554" y="532" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">publica órdenes y configuración</text>
+<text x="554" y="549" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">web 3D + API :8080</text>
+<text x="554" y="566" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">recibe el webhook directo</text>
+<rect x="855" y="515" width="160" height="95" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.5"/>
+<rect x="855" y="515" width="160" height="6" rx="3" fill="#9aa1ab"/>
+<text x="869" y="544" font-size="14" font-weight="700" fill="#1f2328" text-anchor="start">certs</text>
+<text x="869" y="565" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">CA del proyecto,</text>
+<text x="869" y="582" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">certificado del broker</text>
+<text x="869" y="599" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">y de cada cliente</text>
+<text x="30" y="135" font-size="12" font-weight="700" fill="#6b7280" text-anchor="start">DISPOSITIVOS</text>
+<rect x="30" y="150" width="210" height="195" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.5"/>
+<rect x="30" y="150" width="210" height="6" rx="3" fill="#2a56a5"/>
+<text x="44" y="179" font-size="14" font-weight="700" fill="#1f2328" text-anchor="start">ESP32 (uno por bancal)</text>
+<text x="44" y="200" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">bancal1esp1, bancal2esp1…</text>
+<text x="44" y="217" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">WiFi de la facultad:</text>
+<text x="44" y="234" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">solo sale por 80 y 443</text>
+<text x="44" y="251" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">certificado de cliente propio</text>
+<text x="44" y="268" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">aplica las reglas con la</text>
+<text x="44" y="285" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">configuración del servicio</text>
+<text x="44" y="302" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">MQTT/TLS al :443</text>
+<rect x="30" y="455" width="210" height="130" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.5"/>
+<rect x="30" y="455" width="210" height="6" rx="3" fill="#22693f"/>
+<text x="44" y="484" font-size="14" font-weight="700" fill="#1f2328" text-anchor="start">Navegador</text>
+<text x="44" y="505" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">integrantes del grupo,</text>
+<text x="44" y="522" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">en la red de Tailscale</text>
+<text x="44" y="539" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">web 3D, historial, modo</text>
+<text x="44" y="556" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">y rangos · HTTPS + SSE</text>
+<rect x="30" y="610" width="210" height="80" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.5"/>
+<rect x="30" y="610" width="210" height="6" rx="3" fill="#9aa1ab"/>
+<text x="44" y="639" font-size="14" font-weight="700" fill="#1f2328" text-anchor="start">Administración</text>
+<text x="44" y="660" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">SSH a través de sd-2026</text>
+<rect x="1080" y="165" width="195" height="125" rx="12" fill="#ffffff" stroke="#d0d5dd" stroke-width="1.5"/>
+<rect x="1080" y="165" width="195" height="6" rx="3" fill="#c46a12"/>
+<text x="1094" y="194" font-size="14" font-weight="700" fill="#1f2328" text-anchor="start">API de Telegram</text>
+<text x="1094" y="215" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">api.telegram.org</text>
+<text x="1094" y="232" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">avisos al grupo del bot</text>
+<text x="1094" y="249" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">reglas vigilar_servicio</text>
+<text x="1094" y="266" font-size="11.5" font-weight="400" fill="#4b5563" text-anchor="start">y notificar_telegram</text>
+<text x="1080" y="310" font-size="12" font-weight="700" fill="#6b7280" text-anchor="start">EXTERNO</text>
+<path d="M240,210 L303,210" fill="none" stroke="#2a56a5" stroke-width="2" marker-end="url(#p-2a56a5)"/>
+<path d="M305,250 L242,250" fill="none" stroke="#2a56a5" stroke-width="2" marker-end="url(#p-2a56a5)"/>
+<path d="M485,210 L538,210" fill="none" stroke="#2a56a5" stroke-width="2" marker-end="url(#p-2a56a5)"/>
+<path d="M540,250 L487,250" fill="none" stroke="#2a56a5" stroke-width="2" marker-end="url(#p-2a56a5)"/>
+<path d="M240,505 L303,505" fill="none" stroke="#6b7280" stroke-width="2" marker-end="url(#p-6b7280)"/>
+<path d="M305,545 L242,545" fill="none" stroke="#6b7280" stroke-width="2" marker-end="url(#p-6b7280)"/>
+<path d="M485,505 L538,505" fill="none" stroke="#6b7280" stroke-width="2" marker-end="url(#p-6b7280)"/>
+<path d="M540,545 L487,545" fill="none" stroke="#6b7280" stroke-width="2" marker-end="url(#p-6b7280)"/>
+<path d="M240,650 L303,650" fill="none" stroke="#6b7280" stroke-width="2" marker-end="url(#p-6b7280)"/>
+<path d="M600,465 L600,322" fill="none" stroke="#2a56a5" stroke-width="2" marker-end="url(#p-2a56a5)"/>
+<path d="M635,320 L635,463" fill="none" stroke="#2a56a5" stroke-width="2" marker-end="url(#p-2a56a5)"/>
+<text x="647" y="378" font-size="11" font-weight="700" fill="#2a56a5" text-anchor="start">MQTT/TLS mutuo</text>
+<text x="647" y="394" font-size="11" font-weight="400" fill="#2a56a5" text-anchor="start">certificado</text>
+<text x="647" y="410" font-size="11" font-weight="400" fill="#2a56a5" text-anchor="start">CN = servicio</text>
+<path d="M775,320 L775,463" fill="none" stroke="#c46a12" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#p-c46a12)"/>
+<text x="787" y="362" font-size="11" font-weight="700" fill="#c46a12" text-anchor="start">webhook directo</text>
+<text x="787" y="378" font-size="11" font-weight="400" fill="#c46a12" text-anchor="start" font-family="Consolas, Menlo, monospace">POST /api/webhooks/</text>
+<text x="787" y="394" font-size="11" font-weight="400" fill="#c46a12" text-anchor="start" font-family="Consolas, Menlo, monospace">conexiones</text>
+<text x="787" y="410" font-size="11" font-weight="400" fill="#c46a12" text-anchor="start">con token Bearer</text>
+<path d="M810,215 L853,215" fill="none" stroke="#6b7280" stroke-width="2" marker-end="url(#p-6b7280)"/>
+<text x="832" y="207" font-size="10.5" font-weight="700" fill="#6b7280" text-anchor="middle">SQL</text>
+<path d="M810,490 L1000,490 L1000,282" fill="none" stroke="#6b7280" stroke-width="2" marker-end="url(#p-6b7280)"/>
+<text x="992" y="482" font-size="10.5" font-weight="400" fill="#6b7280" text-anchor="end">SQL: modo, rangos, historial</text>
+<path d="M700,160 L700,142 L1177,142 L1177,163" fill="none" stroke="#c46a12" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#p-c46a12)"/>
+<text x="712" y="135" font-size="11" font-weight="700" fill="#c46a12" text-anchor="start">webhook por regla · HTTPS POST a Telegram</text>
+<path d="M30,752 L70,752" fill="none" stroke="#2a56a5" stroke-width="2" marker-end="url(#p-2a56a5)"/>
+<text x="80" y="756" font-size="12.5" font-weight="400" fill="#1f2328" text-anchor="start">MQTT sobre TLS mutuo</text>
+<path d="M254,752 L294,752" fill="none" stroke="#c46a12" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#p-c46a12)"/>
+<text x="304" y="756" font-size="12.5" font-weight="400" fill="#1f2328" text-anchor="start">webhook HTTP (lo inicia el broker)</text>
+<path d="M571.8,752 L611.8,752" fill="none" stroke="#6b7280" stroke-width="2" marker-end="url(#p-6b7280)"/>
+<text x="621.8" y="756" font-size="12.5" font-weight="400" fill="#1f2328" text-anchor="start">otro tráfico (HTTPS, SSE, SQL, SSH)</text>
+<text x="30" y="786" font-size="12" font-weight="400" fill="#5a6270" text-anchor="start">Único puerto público: 443 (Funnel → EMQX). La web solo dentro de Tailscale. MQTT sin cifrar (1883) y WebSocket (8083, 8084) apagados.</text>
 </svg>
