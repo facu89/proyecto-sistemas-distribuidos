@@ -304,3 +304,69 @@ describe('configuración guardada (reinicio del servicio)', () => {
     assert.deepEqual(datos.bancal1esp1, { modo: 'manual', umbrales: null })
   })
 })
+
+describe('reglas en el bancal (firmware que confirma la configuración)', () => {
+  const crear = () => {
+    const configs: { nodo: string; json: Record<string, unknown> }[] = []
+    const ordenes: string[] = []
+    const b = crearBancales({
+      umbrales: UMBRALES,
+      publicar: async (n, a, e) => void ordenes.push(`${n}/${a}=${e ? 1 : 0}`),
+      publicarConfig: async (nodo, json) => void configs.push({ nodo, json: JSON.parse(json) }),
+      zonaPosix: '<-03>3',
+    })
+    return { b, configs, ordenes }
+  }
+
+  it('al conectarse el bancal le manda la configuración', () => {
+    const { b, configs } = crear()
+    b.alMensaje('bancal1esp1/presencia', 'online')
+    assert.equal(configs.length, 1)
+    assert.deepEqual(
+      { ...configs[0].json, v: 'x' },
+      { v: 'x', modo: 'automatico', riego: [20, 70], cooler: [28, 26], luz: null, tz: '<-03>3' },
+    )
+  })
+
+  it('con firmware viejo (sin config/aplicada) el servicio sigue decidiendo', () => {
+    const { b, ordenes } = crear()
+    b.alMensaje('bancal1esp1/presencia', 'online')
+    b.alMensaje('bancal1esp1/sensor/luz', '0')
+    assert.deepEqual(ordenes, ['bancal1esp1/luz=1'])
+  })
+
+  it('cuando el bancal confirma, el servicio deja de ordenar en automático', () => {
+    const { b, configs, ordenes } = crear()
+    b.alMensaje('bancal1esp1/presencia', 'online')
+    b.alMensaje('bancal1esp1/config/aplicada', JSON.stringify({ v: configs[0].json.v, modo: 'automatico', efectivo: 'automatico' }))
+    b.alMensaje('bancal1esp1/sensor/luz', '0')
+    b.alMensaje('bancal1esp1/sensor/humedad_suelo', '5')
+    assert.deepEqual(ordenes, [])
+    const n = b.instantanea().nodos.bancal1esp1
+    assert.equal(n.reglasEnBancal, true)
+    assert.equal(n.config.aplicada, n.config.publicada)
+  })
+
+  it('los cambios de modo y de rangos se publican con una versión más nueva; en manual las órdenes siguen', async () => {
+    const { b, configs, ordenes } = crear()
+    b.alMensaje('bancal1esp1/presencia', 'online')
+    b.alMensaje('bancal1esp1/config/aplicada', JSON.stringify({ v: configs[0].json.v, modo: 'automatico', efectivo: 'automatico' }))
+    await b.setUmbrales('bancal1esp1', { ...UMBRALES, luzHorario: { desde: '18:00', hasta: '23:00' } })
+    await b.setModo('bancal1esp1', 'manual')
+    assert.equal(configs.length, 3)
+    assert.ok((configs[1].json.v as number) > (configs[0].json.v as number))
+    assert.deepEqual(configs[1].json.luz, ['18:00', '23:00'])
+    assert.equal(configs[2].json.modo, 'manual')
+    // La web todavía ve la configuración pendiente hasta que el bancal confirme la última
+    const n = b.instantanea().nodos.bancal1esp1
+    assert.notEqual(n.config.aplicada, n.config.publicada)
+    b.ordenarManual('bancal1esp1', 'luz', true)
+    assert.deepEqual(ordenes, ['bancal1esp1/luz=1'])
+  })
+
+  it('el modo efectivo que informa el bancal (automático si perdió el servicio)', () => {
+    const { b } = crear()
+    b.alMensaje('bancal1esp1/config/aplicada', '{"v": 1, "modo": "manual", "efectivo": "automatico"}')
+    assert.equal(b.instantanea().nodos.bancal1esp1.config.efectivo, 'automatico')
+  })
+})

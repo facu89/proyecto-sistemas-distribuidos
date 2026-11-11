@@ -2,7 +2,8 @@
  * Conexión del servicio con el broker: MQTT sobre TLS, con el usuario `servicio`.
  *
  * Lo que puede hacer lo limita la ACL de software/broker (02-init-users.sh): leer `+/sensor/+`,
- * `+/actuador/+/estado`, `+/presencia` y `alertas/#`, y publicar en `+/actuador/+/cmd`.
+ * `+/actuador/+/estado`, `+/presencia`, `+/config/aplicada` y `alertas/#`, y publicar en
+ * `+/actuador/+/cmd`, `+/config` y `servicio/conexion`.
  */
 import fs from 'node:fs'
 import mqtt from 'mqtt'
@@ -16,7 +17,14 @@ const SUSCRIPCIONES = {
   '+/presencia': { qos: 1 },
   // Las publica el motor de reglas de EMQX (config/emqx.conf), retenidas.
   'alertas/#': { qos: 1 },
+  // Qué configuración aplicó cada bancal y en qué modo está de verdad (lo publica el ESP32, retenido)
+  '+/config/aplicada': { qos: 1 },
 } as const
+/**
+ * "online" mientras el servicio está conectado, "offline" si se cae (Last Will) o se cierra. Retenido: el
+ * ESP32 lo usa para saber si hay servicio; sin servicio, pasa a automático aunque esté en manual.
+ */
+const TOPICO_CONEXION = 'servicio/conexion'
 const QOS_ORDENES = 1
 const RECONEXION_MS = 5000
 
@@ -42,6 +50,8 @@ export function conectarBroker({ mqtt: config }: Config, { alMensaje, alConectar
     ...(config.cert && config.claveTls ? { cert: fs.readFileSync(config.cert), key: fs.readFileSync(config.claveTls) } : {}),
     reconnectPeriod: RECONEXION_MS,
     connectTimeout: 10_000,
+    // Si el servicio muere o pierde la red, el broker publica esto por él
+    will: { topic: TOPICO_CONEXION, payload: Buffer.from('offline'), qos: 1, retain: true },
   })
 
   cliente.on('connect', () => {
@@ -54,6 +64,7 @@ export function conectarBroker({ mqtt: config }: Config, { alMensaje, alConectar
         if (qos === 128) log(`El broker rechazó la suscripción a ${topic}: revisar la ACL del usuario ${config.usuario}`)
       }
     })
+    cliente.publish(TOPICO_CONEXION, 'online', { qos: 1, retain: true })
     alConectar(true)
   })
   cliente.on('close', () => alConectar(false))
@@ -71,6 +82,14 @@ export function conectarBroker({ mqtt: config }: Config, { alMensaje, alConectar
         retain: false,
       })
     },
-    cerrar: () => cliente.endAsync(),
+    /** Publica la configuración del bancal en `{nodoId}/config`, retenida: el ESP32 la recibe al conectarse. */
+    async publicarConfig(nodoId: string, json: string) {
+      await cliente.publishAsync(`${nodoId}/config`, json, { qos: 1, retain: true })
+    },
+    /** Al cerrar prolijo el broker NO publica el Last Will: se avisa a mano que el servicio se va. */
+    async cerrar() {
+      if (cliente.connected) await cliente.publishAsync(TOPICO_CONEXION, 'offline', { qos: 1, retain: true }).catch(() => {})
+      await cliente.endAsync()
+    },
   }
 }

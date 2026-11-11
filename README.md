@@ -50,7 +50,9 @@ Las aplica el servicio ([`software/servicio/src/reglas.ts`](software/servicio/sr
 - [x] Relé del riego (bomba): funciona. Si la humedad del suelo marca 100 % fijo es porque el sensor está puenteado (se hizo para no activar la bomba en las pruebas): sacar el puente para que el riego automático actúe.
 - [ ] Resolver la IP del broker por nombre (mDNS, por ejemplo `broker.local`) en vez de fijarla en `config.h`. Así no habría que volver a grabar el ESP32 al cambiar de red. El certificado tendría que incluir ese nombre.
 
-- [ ] **Si el servicio se cae, nadie aplica las reglas:** los actuadores quedan como estaban (el ESP32 no tiene reglas propias). Se podría dar al ESP32 un modo de respaldo: si no recibe órdenes ni ve al servicio por un rato, aplicar él unos rangos fijos (por ejemplo, cortar el riego tras N minutos).
+- [x] **Las reglas corren en el ESP32** (`firmware/src/reglas.c`): sigue funcionando aunque se caiga el servicio, el broker o internet. El servicio le manda modo y rangos en `{nodoId}/config` (retenido), que el ESP32 guarda en NVS. En manual, si pierde el servicio, pasa a automático en el acto. Ver [topics.md](software/broker/topics.md), sección 6.
+- [ ] **Probar las reglas del ESP32 con la placa:** el firmware compila y la lógica tiene tests (`firmware/test/`), y el lado del servicio se probó con un ESP32 simulado, pero falta grabarlo y probarlo con los relés: rangos nuevos, horario de la luz (NTP) y el paso a automático al apagar el servicio. Ojo: hasta grabarlo, el ESP32 tiene el firmware anterior y el servicio sigue decidiendo por él.
+- [ ] **Dinámica del riego por cantidad de agua:** limitar el riego en **segundos** (por ejemplo, regar N s y esperar a que el agua llegue al sensor antes de volver a decidir), en vez de regar hasta que la humedad llegue al umbral. Va en las reglas del ESP32 y como parámetro más de la configuración.
 
 ### Broker y seguridad
 - [x] MQTT sin cifrar (1883) y WebSocket (8083 y 8084) apagados en `emqx.conf`; en local, el panel (18083) y la web (8080) solo desde la misma máquina.

@@ -214,13 +214,33 @@ export function PanelActuadores({ estado, nodoId, nodo, umbrales, disponible }: 
           {error}
         </p>
       )}
+      {nodo && <EstadoReglas nodo={nodo} />}
       <p className="flotante-nota">
         {!disponible
           ? 'Sin conexión con el servicio: no se puede cambiar nada por ahora.'
           : manual
             ? 'Manual: los interruptores mandan la orden al bancal. Las reglas no actúan hasta volver a automático.'
-            : 'Automático: el servicio los prende y apaga según los sensores del bancal.'}
+            : nodo?.reglasEnBancal
+              ? 'Automático: el bancal los prende y apaga según sus sensores, aunque se caiga el servicio.'
+              : 'Automático: el servicio los prende y apaga según los sensores del bancal.'}
       </p>
     </PanelDesplegable>
+  )
+}
+
+/**
+ * Dónde corren las reglas y si el bancal ya aplicó la última configuración (modo y rangos). Con firmware
+ * viejo, las aplica el servicio.
+ */
+function EstadoReglas({ nodo }: { nodo: Nodo }) {
+  if (!nodo.reglasEnBancal) return <p className="reglas-estado">Reglas: las aplica el servicio</p>
+  const alDia = nodo.config.aplicada !== null && nodo.config.aplicada === nodo.config.publicada
+  return (
+    <p className="reglas-estado" data-al-dia={alDia}>
+      <span className="punto-estado" data-estado={alDia ? 'ok' : 'alerta'} aria-hidden />
+      {alDia
+        ? 'Reglas en el bancal · configuración aplicada'
+        : 'Reglas en el bancal · cambios pendientes: se aplican cuando el bancal se conecte'}
+    </p>
   )
 }

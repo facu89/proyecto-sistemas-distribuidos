@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { decidir, dentroDelHorario, minutoLocal, validarUmbrales, type Actuador, type Umbrales } from './reglas.ts'
+import { decidir, dentroDelHorario, minutoLocal, validarUmbrales, zonaPosix, type Actuador, type Umbrales } from './reglas.ts'
 
 const UMBRALES: Umbrales = {
   riegoEncenderDebajoDe: 20,
@@ -107,5 +107,13 @@ describe('validarUmbrales', () => {
     assert.notEqual(con({ luzHorario: { desde: '25:00', hasta: '02:00' } }), null)
     assert.notEqual(con({ luzHorario: { desde: '8:00', hasta: '10:00' } }), null)
     assert.notEqual(con({ luzHorario: { desde: '10:00', hasta: '10:00' } }), null)
+  })
+})
+
+describe('zonaPosix (lo que entiende el ESP32)', () => {
+  it('Argentina, UTC y una zona con media hora', () => {
+    assert.equal(zonaPosix('America/Argentina/Buenos_Aires'), '<-03>3')
+    assert.equal(zonaPosix('UTC'), 'UTC0')
+    assert.equal(zonaPosix('Asia/Kolkata'), '<+0530>-5:30')
   })
 })

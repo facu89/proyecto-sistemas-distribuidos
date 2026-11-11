@@ -18,6 +18,7 @@ import { crearHistorial } from './historial.ts'
 import { crearServidorHttp } from './http.ts'
 import { conectarBroker } from './mqtt.ts'
 import { conectarMysql } from './mysql.ts'
+import { zonaPosix } from './reglas.ts'
 
 const log = (mensaje: string) => console.log(`[${new Date().toLocaleTimeString('es-AR', { hour12: false })}] ${mensaje}`)
 
@@ -49,6 +50,9 @@ let broker: ReturnType<typeof conectarBroker>
 const bancales = crearBancales({
   umbrales: config.umbrales,
   publicar: (nodoId, actuador, encendido) => broker.publicarOrden(nodoId, actuador, encendido),
+  // El modo y los rangos de cada bancal: el ESP32 aplica las reglas él mismo con esto
+  publicarConfig: (nodoId, json) => broker.publicarConfig(nodoId, json),
+  zonaPosix: zonaPosix(config.zonaHoraria),
   almacen,
   zonaHoraria: config.zonaHoraria,
   log,

@@ -57,7 +57,11 @@ Por defecto el servicio escucha solo en esta máquina (`HTTP_HOST=127.0.0.1`). P
 
 ## Reglas
 
-Están en `src/reglas.ts`, como funciones puras que se prueban en `src/reglas.test.ts`. Son la lógica propia del servicio, no el motor de reglas de EMQX.
+**Con el firmware actual, las reglas las aplica el propio ESP32** (`firmware/src/reglas.c`), así el bancal sigue funcionando aunque se caiga el servicio. El servicio le manda el modo y los rangos en `{nodoId}/config` (retenido) cada vez que cambian y cada vez que el bancal se conecta, y el bancal confirma en `{nodoId}/config/aplicada`. Desde esa confirmación el servicio no le manda órdenes en automático; en manual sí. Ver [topics.md](../broker/topics.md), sección 6.
+
+El servicio también publica `servicio/conexion` (`online`, y `offline` al cerrar o por Last Will si muere): el ESP32 en manual pasa a automático en cuanto el servicio deja de estar.
+
+Las reglas de abajo están también en `src/reglas.ts` (funciones puras, con tests en `src/reglas.test.ts`). El servicio las usa para validar los rangos y para **los bancales con firmware anterior**, que no confirman la configuración: a esos los sigue manejando él, como antes. No son el motor de reglas de EMQX.
 
 | Actuador | Sensor | Se prende | Se apaga |
 |---|---|---|---|

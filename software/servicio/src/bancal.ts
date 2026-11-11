@@ -40,6 +40,20 @@ export type Nodo = {
   umbrales: Umbrales
   /** `true` si el bancal tiene rangos propios (cambiados desde la web); `false`, los de por defecto. */
   umbralesPropios: boolean
+  /**
+   * `true` si el bancal aplica las reglas él mismo (firmware que confirma la configuración en
+   * `{nodo}/config/aplicada`): el servicio le manda el modo y los rangos y ya no ordena en automático.
+   * `false` con firmware viejo: el servicio decide como antes.
+   */
+  reglasEnBancal: boolean
+  config: {
+    /** Versión de la última configuración publicada en `{nodo}/config`. */
+    publicada: number | null
+    /** Versión que el bancal confirmó que está usando. Si difiere de `publicada`, está pendiente. */
+    aplicada: number | null
+    /** Modo en que el bancal está funcionando de verdad (en automático si perdió el servicio). */
+    efectivo: Modo | null
+  }
   presencia: Presencia | null
   instantePresencia: number | null
   /** Por {tipo} de sensor: temperatura_suelo, temperatura_aire, humedad_aire, humedad_suelo, luz. */
@@ -92,6 +106,10 @@ type Opciones = {
   /** Los rangos por defecto, para los bancales que no tienen propios. */
   umbrales: Umbrales
   publicar: Publicar
+  /** Publica la configuración de un bancal en `{nodo}/config` (retenida). Sin esto no se publica. */
+  publicarConfig?: (nodoId: string, json: string) => Promise<void>
+  /** Zona horaria POSIX que se le manda al bancal para el horario de la luz. */
+  zonaPosix?: string
   /** Dónde se guardan el modo y los rangos de cada bancal (MySQL). Sin almacén, quedan solo en memoria. */
   almacen?: Almacen | null
   /** Zona horaria del horario de la luz. */
@@ -103,6 +121,8 @@ type Opciones = {
 export function crearBancales({
   umbrales,
   publicar,
+  publicarConfig,
+  zonaPosix = '<-03>3',
   almacen = null,
   zonaHoraria = 'America/Argentina/Buenos_Aires',
   log = () => {},
@@ -128,6 +148,8 @@ export function crearBancales({
       modo: config?.modo ?? 'automatico',
       umbrales: config?.umbrales ?? umbrales,
       umbralesPropios: (config?.umbrales ?? null) !== null,
+      reglasEnBancal: false,
+      config: { publicada: null, aplicada: null, efectivo: null },
       presencia: null,
       instantePresencia: null,
       lecturas: {},
@@ -165,6 +187,8 @@ export function crearBancales({
   /** Aplica la regla del sensor `tipo` con su última lectura y, si corresponde, ordena. */
   function aplicarRegla(nodoId: string, tipo: string, motivo: string) {
     const n = nodo(nodoId)
+    // El bancal decide solo: el servicio no le manda órdenes en automático (se pisarían)
+    if (n.reglasEnBancal) return
     const lectura = n.lecturas[tipo]
     const decision = decidir(
       tipo,
@@ -206,11 +230,53 @@ export function crearBancales({
     // El ESP32 no recuerda las órdenes al reiniciarse y /cmd no es retenido: cada vez que se
     // conecta (publica "online") se le reenvían las órdenes vigentes.
     if (texto === 'online') {
+      enviarConfig(nodoId)
+      // Si el bancal aplica las reglas, solo se le reenvían las órdenes manuales
+      if (n.reglasEnBancal && n.modo !== 'manual') return true
       for (const actuador of ACTUADORES) {
         const ordenado = n.actuadores[actuador].ordenado
         if (ordenado !== null) ordenar(nodoId, actuador, ordenado, 'reenvío: el nodo se conectó')
       }
     }
+    return true
+  }
+
+  /**
+   * Publica en `{nodo}/config` el modo y los rangos del bancal (retenida). La "v" es una marca de tiempo
+   * creciente: el bancal la devuelve en `config/aplicada` y así se sabe si ya aplicó la última.
+   */
+  function enviarConfig(nodoId: string) {
+    if (!publicarConfig) return
+    const n = nodo(nodoId)
+    const u = n.umbrales
+    const v = Math.max(ahora(), (n.config.publicada ?? 0) + 1)
+    const json = JSON.stringify({
+      v,
+      modo: n.modo,
+      riego: [u.riegoEncenderDebajoDe, u.riegoApagarDesde],
+      cooler: [u.ventiladorEncenderDesde, u.ventiladorApagarDebajoDe],
+      luz: u.luzHorario ? [u.luzHorario.desde, u.luzHorario.hasta] : null,
+      tz: zonaPosix,
+    })
+    n.config.publicada = v
+    publicarConfig(nodoId, json).catch((error: unknown) =>
+      log(`No se pudo publicar la configuración de ${nodoId}: ${error instanceof Error ? error.message : error}`),
+    )
+  }
+
+  /** `{nodo}/config/aplicada`: `{"v", "modo", "efectivo"}`. El bancal tiene firmware que aplica las reglas. */
+  function alConfigAplicada(nodoId: string, texto: string): boolean {
+    let json: { v?: unknown; efectivo?: unknown }
+    try {
+      json = JSON.parse(texto)
+    } catch {
+      return false
+    }
+    const n = nodo(nodoId)
+    if (!n.reglasEnBancal) log(`${nodoId} aplica las reglas en el bancal: el servicio le manda la configuración`)
+    n.reglasEnBancal = true
+    n.config.aplicada = typeof json.v === 'number' ? json.v : null
+    n.config.efectivo = esModo(json.efectivo) ? json.efectivo : null
     return true
   }
 
@@ -277,6 +343,7 @@ export function crearBancales({
         n.modo = c.modo
         n.umbrales = c.umbrales ?? umbrales
         n.umbralesPropios = c.umbrales !== null
+        enviarConfig(id)
         reaplicar(id, 'configuración guardada')
       }
       avisar()
@@ -294,6 +361,7 @@ export function crearBancales({
         const clave = partes.slice(1).join('/')
         if (clave) cambio = alAlerta(clave, valor)
       } else if (partes.length === 3 && seccion === 'sensor' && tipo) cambio = alSensor(nodoId, tipo, valor)
+      else if (partes.length === 3 && seccion === 'config' && tipo === 'aplicada') cambio = alConfigAplicada(nodoId, valor)
       else if (partes.length === 4 && seccion === 'actuador' && sufijo === 'estado' && esActuador(tipo))
         cambio = alEstado(nodoId, tipo, valor)
       else if (partes.length === 2 && seccion === 'presencia') cambio = alPresencia(nodoId, valor)
@@ -314,6 +382,7 @@ export function crearBancales({
       if (!guardado.ok) return guardado
       n.modo = modo
       log(`${nodoId}: modo ${modo}`)
+      enviarConfig(nodoId)
       reaplicar(nodoId, 'vuelta a automático')
       avisar()
       return { ok: true }
@@ -335,6 +404,7 @@ export function crearBancales({
       n.umbrales = nuevos ?? umbrales
       n.umbralesPropios = nuevos !== null
       log(`${nodoId}: rangos ${nuevos === null ? 'por defecto' : JSON.stringify(nuevos)}`)
+      enviarConfig(nodoId)
       reaplicar(nodoId, 'rangos nuevos')
       avisar()
       return { ok: true }

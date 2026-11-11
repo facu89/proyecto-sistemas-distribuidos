@@ -25,7 +25,12 @@ INSERT IGNORE INTO mqtt_acl (username, permission, action, topic) VALUES
   ('$all', 'allow', 'publish',   '${username}/sensor/+'),
   ('$all', 'allow', 'publish',   '${username}/actuador/+/estado'),
   ('$all', 'allow', 'publish',   '${username}/presencia'),
-  ('$all', 'allow', 'subscribe', '${username}/actuador/+/cmd');
+  ('$all', 'allow', 'subscribe', '${username}/actuador/+/cmd'),
+  -- Reglas en el bancal: recibe su configuración (modo y rangos) y si el servicio está en línea,
+  -- y confirma qué configuración aplicó
+  ('$all', 'allow', 'subscribe', '${username}/config'),
+  ('$all', 'allow', 'subscribe', 'servicio/conexion'),
+  ('$all', 'allow', 'publish',   '${username}/config/aplicada');
 
 -- Regla para el cliente web / dashboard (solo lectura)
 INSERT IGNORE INTO mqtt_acl (username, permission, action, topic) VALUES

@@ -51,6 +51,9 @@ INSERT INTO mqtt_acl (username, permission, action, topic) VALUES
   ('${MQTT_SERVICIO_USER:-servicio}', 'allow', 'publish',   '+/actuador/+/cmd'),
   ('${MQTT_SERVICIO_USER:-servicio}', 'allow', 'subscribe', '+/actuador/+/estado'),
   ('${MQTT_SERVICIO_USER:-servicio}', 'allow', 'subscribe', '+/presencia'),
-  ('${MQTT_SERVICIO_USER:-servicio}', 'allow', 'subscribe', 'alertas/#')
+  ('${MQTT_SERVICIO_USER:-servicio}', 'allow', 'subscribe', 'alertas/#'),
+  ('${MQTT_SERVICIO_USER:-servicio}', 'allow', 'publish',   '+/config'),
+  ('${MQTT_SERVICIO_USER:-servicio}', 'allow', 'subscribe', '+/config/aplicada'),
+  ('${MQTT_SERVICIO_USER:-servicio}', 'allow', 'publish',   'servicio/conexion')
 ON DUPLICATE KEY UPDATE permission=VALUES(permission);
 EOF

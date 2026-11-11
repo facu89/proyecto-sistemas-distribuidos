@@ -35,11 +35,21 @@ constexpr int QOS_PRESENCIA = 1;
 constexpr int QOS_ORDENES = 1;
 constexpr int QOS_ESTADO = 1;
 constexpr const char *SUFIJO_ORDEN = "/cmd";
+constexpr int QOS_CONFIG = 1;
+constexpr const char *TOPICO_SERVICIO = "servicio/conexion";
+constexpr size_t MAX_CONFIG = 384;
+
+struct MensajeConfig {
+  char json[MAX_CONFIG];
+};
 
 esp_mqtt_client_handle_t cliente = nullptr;
 bool mqttIniciado = false;
 std::atomic<bool> conectado{false};
 QueueHandle_t colaOrdenes = nullptr;
+QueueHandle_t colaConfig = nullptr;
+// "servicio/conexion": true con "online". Se pone en false al perder el broker.
+std::atomic<bool> servicioEnLinea{false};
 
 // Último error informado por esp-mqtt, para mostrar el motivo de una desconexión por Serial.
 std::atomic<int> errorTipo{MQTT_ERROR_TYPE_NONE};
@@ -49,6 +59,33 @@ std::atomic<int> errorSocket{0};
 char topicoPresencia[64];  // {nodoId}/presencia
 char filtroOrdenes[64];    // {nodoId}/actuador/+/cmd
 char prefijoOrdenes[64];   // {nodoId}/actuador/
+char topicoConfig[64];     // {nodoId}/config
+char topicoAplicada[64];   // {nodoId}/config/aplicada
+
+bool esTopico(const esp_mqtt_event_t &evento, const char *topico) {
+  return (size_t)evento.topic_len == strlen(topico) && memcmp(evento.topic, topico, evento.topic_len) == 0;
+}
+
+void encolarOrden(const esp_mqtt_event_t &evento);
+
+// Corre en la tarea de MQTT. La configuración y la conexión del servicio van por su lado; el resto, a
+// encolarOrden (que descarta lo que no sea {nodoId}/actuador/{tipo}/cmd).
+void atenderMensaje(const esp_mqtt_event_t &evento) {
+  if (evento.current_data_offset != 0 || evento.data_len != evento.total_data_len) return;
+  if (esTopico(evento, TOPICO_SERVICIO)) {
+    servicioEnLinea = evento.data_len == 6 && memcmp(evento.data, "online", 6) == 0;
+    return;
+  }
+  if (esTopico(evento, topicoConfig)) {
+    if ((size_t)evento.data_len >= MAX_CONFIG) return;
+    MensajeConfig mensaje;
+    memcpy(mensaje.json, evento.data, evento.data_len);
+    mensaje.json[evento.data_len] = '\0';
+    xQueueSend(colaConfig, &mensaje, 0);
+    return;
+  }
+  encolarOrden(evento);
+}
 
 void copiar(char *destino, size_t tamano, const char *origen, size_t largo) {
   if (largo >= tamano) largo = tamano - 1;
@@ -84,12 +121,15 @@ void alEvento(void *, esp_event_base_t, int32_t id, void *datos) {
       // Pisa el "offline" retenido que pudo haber dejado el Last Will de una caída anterior.
       esp_mqtt_client_publish(cliente, topicoPresencia, "online", 0, QOS_PRESENCIA, 1);
       esp_mqtt_client_subscribe(cliente, filtroOrdenes, QOS_ORDENES);
+      esp_mqtt_client_subscribe(cliente, topicoConfig, QOS_CONFIG);
+      esp_mqtt_client_subscribe(cliente, TOPICO_SERVICIO, QOS_CONFIG);
       break;
     case MQTT_EVENT_DISCONNECTED:
       conectado = false;
+      servicioEnLinea = false;  // sin broker no hay servicio: el bancal pasa a decidir solo
       break;
     case MQTT_EVENT_DATA:
-      encolarOrden(*evento);
+      atenderMensaje(*evento);
       break;
     case MQTT_EVENT_ERROR:
       if (evento->error_handle) {
@@ -165,6 +205,9 @@ void publicar(const char *tipo, float valor, unsigned int decimales) {
 
 void redIniciar() {
   colaOrdenes = xQueueCreate(8, sizeof(Orden));
+  colaConfig = xQueueCreate(2, sizeof(MensajeConfig));
+  snprintf(topicoConfig, sizeof topicoConfig, "%s/config", NODO_ID);
+  snprintf(topicoAplicada, sizeof topicoAplicada, "%s/config/aplicada", NODO_ID);
   snprintf(topicoPresencia, sizeof topicoPresencia, "%s/presencia", NODO_ID);
   snprintf(filtroOrdenes, sizeof filtroOrdenes, "%s/actuador/+%s", NODO_ID, SUFIJO_ORDEN);
   snprintf(prefijoOrdenes, sizeof prefijoOrdenes, "%s/actuador/", NODO_ID);
@@ -224,6 +267,21 @@ void redPublicarEstado(const char *tipo, bool prendido) {
   snprintf(topico, sizeof topico, "%s/actuador/%s/estado", NODO_ID, tipo);
   // Retenido: quien se conecta después ve el estado actual sin esperar al próximo cambio.
   esp_mqtt_client_publish(cliente, topico, prendido ? "1" : "0", 0, QOS_ESTADO, 1);
+}
+
+bool redConfigNueva(char *json, size_t tamano) {
+  MensajeConfig mensaje;
+  if (xQueueReceive(colaConfig, &mensaje, 0) != pdTRUE) return false;
+  strncpy(json, mensaje.json, tamano - 1);
+  json[tamano - 1] = '\0';
+  return true;
+}
+
+bool redServicioConectado() { return conectado && servicioEnLinea; }
+
+void redPublicarConfigAplicada(const char *json) {
+  if (!conectado) return;  // al reconectar, main la vuelve a publicar
+  esp_mqtt_client_publish(cliente, topicoAplicada, json, 0, QOS_CONFIG, 1);
 }
 
 EstadoRed redEstado() {

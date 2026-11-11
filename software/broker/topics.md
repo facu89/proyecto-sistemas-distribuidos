@@ -26,13 +26,16 @@ Todos se conectan al broker por TLS (puerto 8883), verificando el certificado de
 | `{nodoId}/presencia` | Presencia | ESP32 (`online`) / broker por Last Will (`offline`) | Usuario y Servicio | 1 | Sí |
 | `alertas/nodo_offline/{nodoId}` | Nodo caído | Broker (regla `alerta_nodo_offline`) | Servicio (→ Usuario) y regla `notificar_telegram` | 1 | Sí |
 | `alertas/servicio` | Servicio caído | Broker (regla `vigilar_servicio`) | Servicio (→ Usuario) | 1 | Sí |
+| `{nodoId}/config` | Configuración del bancal | Servicio | ESP32 (solo su nodo) | 1 | Sí |
+| `{nodoId}/config/aplicada` | Configuración aplicada | ESP32 | Servicio (→ Usuario) | 1 | Sí |
+| `servicio/conexion` | Servicio en línea | Servicio (`online`) / broker por Last Will (`offline`) | ESP32 | 1 | Sí |
 
 Filtros de suscripción de cada participante:
 
 | Participante | Filtros |
 |---|---|
-| ESP32 | `{nodoId}/actuador/+/cmd` (solo los de su propio nodo) |
-| Servicio | `+/sensor/+`, `+/actuador/+/estado`, `+/presencia`, `alertas/#` |
+| ESP32 | `{nodoId}/actuador/+/cmd` y `{nodoId}/config` (solo los de su propio nodo), `servicio/conexion` |
+| Servicio | `+/sensor/+`, `+/actuador/+/estado`, `+/presencia`, `+/config/aplicada`, `alertas/#` |
 | Motor de reglas de EMQX | `+/presencia`, `+/sensor/+`, `alertas/nodo_offline/+` y los eventos `$events/client_connected` y `$events/client_disconnected` |
 | Usuario | Ninguno: no se conecta al broker. El servicio le pasa las lecturas, las órdenes que dio, el estado de los actuadores, la presencia y las alertas. |
 
@@ -104,12 +107,28 @@ Las publica **el broker**, con su motor de reglas ([`config/emqx.conf`](config/e
 - **Retain sí:** cada alerta representa un estado que se mantiene ("el nodo está caído"), no un evento puntual. Quien se conecta después ve enseguida cuáles siguen activas. Cuando se resuelve, no se borra: se publica la misma alerta con `activa: false`.
 - **El nodo va en el tópico** (`alertas/nodo_offline/{nodoId}`): así cada nodo tiene su propia alerta retenida y la de un nodo no pisa la de otro.
 
+### 6. Configuración del bancal (las reglas corren en el ESP32)
+
+El ESP32 aplica las reglas él mismo (`firmware/src/reglas.c`): así el bancal sigue regando, ventilando y prendiendo la luz aunque se caiga el servicio, el broker o internet. El servicio le manda **qué** reglas usar.
+
+| Tópico | Payload | Notas |
+|---|---|---|
+| `{nodoId}/config` | `{"v": 1731264000000, "modo": "automatico", "riego": [20, 70], "cooler": [28, 26], "luz": null, "tz": "<-03>3"}` | `riego`: prende bajo / apaga desde (%). `cooler`: prende desde / apaga bajo (°C). `luz`: `null` o `["18:00", "23:00"]`. `tz`: zona horaria POSIX para el horario. `v`: versión, crece con cada cambio |
+| `{nodoId}/config/aplicada` | `{"v": 1731264000000, "modo": "manual", "efectivo": "automatico"}` | La versión que está usando y el modo en que funciona de verdad |
+| `servicio/conexion` | `online` / `offline` | El servicio publica `online` al conectarse y `offline` al cerrar; si muere, el broker publica `offline` por él (Last Will) |
+
+- **Retenido `config`:** el ESP32 recibe su configuración apenas se conecta, aunque el servicio no esté. Además la guarda en su memoria permanente (NVS): si se reinicia sin broker, sigue con la última.
+- **Manual sin servicio → automático:** en manual las órdenes vienen de la web a través del servicio. Si el servicio se cae (`servicio/conexion` = `offline`) o el ESP32 pierde el broker, nadie podría manejarlo, así que pasa a automático en el acto. Cuando el servicio vuelve, retoma el modo configurado.
+- **`config/aplicada`:** el servicio sabe si el bancal ya aplicó la última configuración (la web lo muestra) y en qué modo está de verdad. También le dice al servicio que ese ESP32 aplica las reglas: desde ahí el servicio deja de mandarle órdenes en automático. Con un firmware viejo, que no lo publica, el servicio sigue decidiendo como antes.
+- **La hora** (para el horario de la luz) la toma el ESP32 por NTP de internet. Sin hora, ignora el horario y prende la luz siempre que esté oscuro.
+
 ## Decisiones de diseño
 
 - **Un tópico por sensor** (en vez de un solo mensaje con todos los datos): el payload es solo un número, se puede suscribir a una sola magnitud y las reglas por umbral (por ejemplo, humedad baja) quedan simples.
 - **Separación `sensor` / `actuador`:** permite que la ACL diga claramente "el ESP32 publica en `sensor` y en `actuador/.../estado`, y lee `actuador/.../cmd`; el servicio, al revés".
 - **`{nodoId}` de un solo nivel, igual al usuario MQTT del ESP32:** cada ESP32 se autentica en el broker con su `{nodoId}` como usuario. Así la ACL se escribe con una única regla genérica para todos los nodos ("cada ESP32 solo publica y lee tópicos que empiezan con su propio `{nodoId}`"), sin cargar una regla por equipo, y ningún ESP32 puede publicar datos en nombre de otro nodo.
 - **Comando en `/cmd` y estado en `/estado`:** el comando y el estado de un actuador son dos subtópicos hermanos, al mismo nivel (`.../riego/cmd` y `.../riego/estado`). Si el comando fuera el propio `.../riego` y el estado un subtópico suyo, el ESP32 tendría que suscribirse con un filtro exacto de un nivel (`{nodoId}/actuador/+`) y cuidarse de no usar nunca `#`, porque recibiría sus propios mensajes de `/estado` como si fueran órdenes y podría entrar en un bucle (publica `1` como estado, lo lee como orden, lo vuelve a ejecutar). Con `/cmd` el ESP32 se suscribe solo a lo que termina en `cmd`, no hay forma de confundir una cosa con la otra, y la ACL queda simple: el ESP32 lee `.../cmd` y publica `.../estado`; el servicio, al revés.
+- **Las reglas corren en el bancal** y el servicio es quien las configura: ver la sección 6. Así un corte del servicio, del broker o de internet no deja los actuadores trabados (un riego prendido, una luz que no se apaga).
 - **Las órdenes las da solo el servicio:** el usuario no publica en el broker. Así nadie puede activar un actuador sin pasar por el servicio. En **modo manual** (se elige en la web), el usuario le *pide* al servicio prender o apagar un actuador y el servicio publica la orden en `/cmd`. Ver el [README del servicio](../servicio/README.md#modo-automático--manual).
 - **El usuario ve las órdenes**, no solo el estado: así puede distinguir entre lo que el servicio pidió y lo que el actuador realmente hizo. Si se ordenó encender (`on` o `1`) pero `/estado` sigue apagado (`off` o `0`), la orden está pendiente; si pasa un tiempo y no cambia, el actuador falló o el ESP32 no la recibió. Con solo el estado, el usuario no sabría que hubo una orden. El servicio le pasa las dos cosas por actuador (`ordenado` y `real`), y la web marca "pendiente" cuando no coinciden.
 - **La web recibe los datos a través del servicio** (Server-Sent Events) en vez de conectarse al broker por WebSocket:

@@ -750,3 +750,18 @@ button.interruptor:disabled {
   opacity: 0.5;
   cursor: default;
 }
+
+/* Dónde corren las reglas y si el bancal aplicó la última configuración */
+.reglas-estado {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 4px 0;
+  font-size: 12px;
+  color: var(--panel-tenue);
+}
+
+.reglas-estado .punto-estado {
+  width: 8px;
+  height: 8px;
+}

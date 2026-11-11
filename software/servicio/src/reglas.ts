@@ -61,6 +61,24 @@ export function minutoLocal(instante: number, zonaHoraria: string): number {
   return valor('hour') * 60 + valor('minute')
 }
 
+/**
+ * La zona horaria en formato POSIX, que es lo que entiende el ESP32 ("<-03>3" para Argentina, UTC-3).
+ * Toma el desfasaje de ese momento: sirve para zonas sin horario de verano, como Argentina.
+ */
+export function zonaPosix(zonaHoraria: string, instante = Date.now()): string {
+  const nombre = new Intl.DateTimeFormat('en-US', { timeZone: zonaHoraria, timeZoneName: 'longOffset' })
+    .formatToParts(instante)
+    .find((p) => p.type === 'timeZoneName')?.value
+  const partes = /GMT([+-])(\d{2}):(\d{2})/.exec(nombre ?? '')
+  if (!partes) return 'UTC0'
+  const [, signo, hh, mm] = partes
+  if (hh === '00' && mm === '00') return 'UTC0'
+  const nombrePosix = `<${signo}${hh}${mm === '00' ? '' : mm}>`
+  // En POSIX el signo va al revés: UTC-3 se escribe "3"
+  const horas = `${signo === '-' ? '' : '-'}${Number(hh)}${mm === '00' ? '' : `:${mm}`}`
+  return nombrePosix + horas
+}
+
 /** Revisa unos umbrales antes de usarlos o guardarlos. Devuelve el problema, o `null` si están bien. */
 export function validarUmbrales(u: Umbrales): string | null {
   const numero = (v: unknown) => typeof v === 'number' && Number.isFinite(v)
