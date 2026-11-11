@@ -5,7 +5,7 @@
 #      firmado sigue valiendo y el ESP32 grabado también, porque verifica las firmas con esa clave.
 #   2. El certificado del broker (broker.pem).
 #   3. Los certificados de cliente para TLS mutuo (certs/clientes/): el del servicio y el de cada ESP32 de
-#      NODOS_TLS (secrets/.env; por defecto, MQTT_ESP_USER). Ver generar_cliente.sh.
+#      NODOS_TLS (secrets/.env; por defecto, MQTT_ESP_USER y MQTT_SIMULADOR_USER). Ver generar_cliente.sh.
 #
 # El certificado del broker se regenera (con generar_certificados.sh) solo si hace falta:
 #   - no existe, o falta su clave;
@@ -111,8 +111,9 @@ fi
 chmod 644 broker.key key.pem
 fi
 
-# Certificados de cliente (TLS mutuo): el servicio y cada ESP32 de NODOS_TLS (por defecto, MQTT_ESP_USER)
-NODOS_TLS="${NODOS_TLS:-${MQTT_ESP_USER:-}}"
+# Certificados de cliente (TLS mutuo): el servicio y cada ESP32 de NODOS_TLS (por defecto, MQTT_ESP_USER y,
+# si está, el ESP32 simulado MQTT_SIMULADOR_USER)
+NODOS_TLS="${NODOS_TLS:-${MQTT_ESP_USER:-} ${MQTT_SIMULADOR_USER:-}}"
 read -r -a NODOS <<< "$(echo "${NODOS_TLS%%#*}" | tr ',;' '  ')"
 "$AQUI/generar_cliente.sh" servicio 365
 for nodo in "${NODOS[@]}"; do
