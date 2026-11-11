@@ -1,0 +1,22 @@
+{
+  "name": "simulador",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "ESP32 simulado: un segundo bancal que se conecta al broker igual que la placa real",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node --env-file=.env src/main.ts",
+    "test": "node --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "mqtt": "^5.16.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "~7.0.2"
+  }
+}

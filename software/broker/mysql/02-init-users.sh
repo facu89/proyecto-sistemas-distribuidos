@@ -33,6 +33,14 @@ INSERT INTO mqtt_user (username, password_hash, salt)
 VALUES ('${MQTT_ESP_USER:-bancal1esp1}', SHA2(CONCAT(@salt_esp, '${MQTT_ESP_PASSWORD:-clave-del-esp}'), 256), @salt_esp)
 ON DUPLICATE KEY UPDATE password_hash=VALUES(password_hash), salt=VALUES(salt);
 
+-- Usuario del ESP32 simulado (software/simulador), si está configurado: un segundo bancal que corre en
+-- una computadora. Las reglas de ACL de los nodos ($all con ${username}) le valen igual que a la placa.
+SET @salt_sim = HEX(RANDOM_BYTES(8));
+INSERT INTO mqtt_user (username, password_hash, salt)
+SELECT '${MQTT_SIMULADOR_USER:-}', SHA2(CONCAT(@salt_sim, '${MQTT_SIMULADOR_PASSWORD:-}'), 256), @salt_sim
+FROM DUAL WHERE '${MQTT_SIMULADOR_USER:-}' <> '' AND '${MQTT_SIMULADOR_PASSWORD:-}' <> ''
+ON DUPLICATE KEY UPDATE password_hash=VALUES(password_hash), salt=VALUES(salt);
+
 -- Usuario administrador (superusuario)
 SET @salt_adm = HEX(RANDOM_BYTES(8));
 INSERT INTO mqtt_user (username, password_hash, salt, is_superuser)

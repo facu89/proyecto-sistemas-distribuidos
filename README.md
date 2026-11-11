@@ -87,4 +87,4 @@ EMQX hace un HTTP POST por cada mensaje o evento que elijamos. Sirve cuando del 
 - [x] El modo de cada bancal se guarda en MySQL y sobrevive a un reinicio del servicio.
 - [ ] **Usuarios en la web:** hoy cualquiera que pueda abrirla puede cambiar el modo y manejar los actuadores. Hace falta antes de abrir el servicio a la red (`HTTP_HOST=0.0.0.0`).
 - [x] Varios bancales: botón "Vivero" abajo al centro de la web que despliega los bancales, con el estado de cada nodo (en línea / caído).
-- [ ] Un usuario MQTT por ESP32 (para sumar bancales reales).
+- [x] **Segundo bancal simulado** (`software/simulador`): `bancal2esp1` corre en una computadora y se conecta al servidor por MQTT como la placa (TLS mutuo, mismas reglas). Así hay dos bancales en la web, uno real y uno simulado.
