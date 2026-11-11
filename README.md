@@ -31,6 +31,8 @@ cd software/servicio && pnpm install && pnpm start
 #    Compilar y grabar con PlatformIO (la CA del broker se embebe sola).
 ```
 
+**En el servidor de la cátedra** (`alumno16`): con los cambios commiteados, `software/broker/desplegar.sh` sube el commit actual por SSH y levanta todo con Docker Compose. La primera vez y los detalles están en el [README del broker, sección "Servidor"](software/broker/README.md#servidor).
+
 Si la máquina del broker cambia de red o de IP, hay que volver a correr `levantar.sh` y actualizar `MQTT_HOST` en el ESP32 (ver [README del broker](software/broker/README.md#si-cambia-la-red-o-la-ip-de-la-máquina)).
 
 ## Reglas de los actuadores

@@ -202,7 +202,18 @@ Desde la máquina de cada uno, con los cambios commiteados:
 software/broker/desplegar.sh
 ```
 
-El script sube lo commiteado (HEAD) por SSH, sin usar GitHub, a `~/bancal` y corre `docker compose -f compose.yaml -f compose.servidor.yaml up -d --build`. Conserva `secrets/.env` y los certificados del servidor, y deja la versión anterior en `~/bancal.anterior`.
+Hace falta Git Bash (en Windows) o cualquier bash, y poder entrar por SSH al servidor (el comando de arriba). El script:
+
+1. Sube **lo commiteado (HEAD)** por SSH, sin usar GitHub, a `~/bancal`. Los cambios sin commit no se suben (avisa si hay).
+2. Pasa a la versión nueva `secrets/` y `security/certs/` del servidor, y deja la versión anterior en `~/bancal.anterior`.
+3. Corre `separar_secretos.sh`, que pone `secrets/` al formato actual (no hace nada si ya está).
+4. Levanta con `docker compose -f compose.yaml -f compose.servidor.yaml up -d --build`: recompila la imagen del servicio y recrea solo lo que cambió. En cada `up`, `mysql-actualizar` agrega las tablas y permisos nuevos de `mysql/init.sql` sin borrar el historial, y `certs` renueva los certificados que hagan falta.
+5. Si cambió `config/emqx.conf`, reinicia EMQX (compose no lo hace solo, porque el archivo está montado). Los ESP32 y el servicio se reconectan en unos segundos.
+6. Muestra el estado de los contenedores (`docker compose ps`): todos tienen que estar `Up` (y `healthy` EMQX y MySQL); `certs` y `mysql-actualizar` terminan con `Exited (0)`.
+
+**Si algo sale mal**, los logs se ven en el servidor con `cd ~/bancal/software/broker && docker compose logs --tail 50 emqx` (o `servicio`). Para volver a la versión anterior, desplegar el commit anterior (`git checkout <commit>` y `software/broker/desplegar.sh`, después `git checkout main`).
+
+**Si cambia un secreto** (`secrets/.env` o `secrets/servicio.env` del servidor): editarlo en el servidor y volver a correr `desplegar.sh` (o, en el servidor, el mismo `docker compose ... up -d`). Compose recrea los contenedores que usan ese archivo.
 
 ### Primera vez
 
@@ -218,7 +229,10 @@ El script sube lo commiteado (HEAD) por SSH, sin usar GitHub, a `~/bancal` y cor
 
 2. **`secrets/.env` y `secrets/servicio.env` del servidor** (`~/bancal/software/broker/secrets/`): copiar los de `secrets.example/` con **claves nuevas y largas** (`openssl rand -base64 24`). El puerto MQTT es público, así que la clave es lo único que separa a un desconocido del broker. Además:
    - `BROKER_DNS=bancal.taile538b8.ts.net`;
-   - `BROKER_IP` vacía.
+   - `BROKER_IP` vacía;
+   - `NODOS_TLS` con todos los ESP32 (por ejemplo `bancal1esp1 bancal2esp1`), para que se genere el certificado de cada uno;
+   - **webhook de conexiones:** el mismo token (`openssl rand -hex 32`) en `WEBHOOK_TOKEN` de `servicio.env` y en el `Bearer` de `EMQX_CONNECTORS__HTTP__SERVICIO__HEADERS` de `.env`. Si falta, solo deja de andar el aviso de conexiones en la web;
+   - **Telegram:** `EMQX_ACTIONS__HTTP__TELEGRAM__PARAMETERS__PATH` `=/bot<TOKEN>/sendMessage?chat_id=<CHAT_ID>` (cómo sacar los dos: `secrets.example/.env`, bloque `[TELEGRAM]`). Si falta, solo dejan de llegar los avisos.
 
 3. **Subir y levantar:** `software/broker/desplegar.sh`. La primera vez copia la CA local (`ca.key` y `firmware/certs/ca.pem`), así el ESP32 confía en este broker con la misma CA.
 
@@ -243,7 +257,7 @@ El script sube lo commiteado (HEAD) por SSH, sin usar GitHub, a `~/bancal` y cor
 
    La IP pública de Funnel es compartida entre muchas máquinas de Tailscale, y la conexión llega a la nuestra por el nombre que manda el cliente en el saludo TLS (SNI). Un cliente que se conecte por IP no llega. El ESP32 manda el nombre solo, porque se conecta con `hostname`.
 
-5. **ESP32:** en `firmware/include/config.h`, `MQTT_HOST = "bancal.taile538b8.ts.net"`, `MQTT_PORT = 443` y la clave nueva del ESP en `MQTT_PASS` (está en `secrets/.env` del servidor). Compilar y grabar.
+5. **ESP32:** en `firmware/include/config.h`, `MQTT_HOST = "bancal.taile538b8.ts.net"`, `MQTT_PORT = 443` y la clave nueva del ESP en `MQTT_PASS` (está en `secrets/.env` del servidor). Compilar y grabar (`pio run -t upload`). El certificado de cliente que se embebe es el de tu máquina (`security/certs/clientes/`). Sirve igual en el servidor porque está firmado por la misma CA y tiene el mismo CN.
 
 ### Compartir la web con el grupo
 
