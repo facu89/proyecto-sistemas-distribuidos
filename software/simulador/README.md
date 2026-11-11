@@ -20,13 +20,31 @@ Un segundo bancal (`bancal2esp1`) que corre en una computadora y se conecta al b
 - **Configuración guardada:** la última que recibió queda en `estado.json`, que hace de memoria NVS. Si arranca sin broker, sigue con esa.
 - **Presencia:** publica `online` al conectarse. Si se corta, el broker publica `offline` (Last Will), igual que con la placa.
 
+## El panel
+
+`pnpm start` abre un panel en **http://localhost:8091** (solo desde la misma computadora) para ver el bancal en vivo y manejarlo:
+
+- **Sensores:** cada uno muestra su valor y los últimos 5 minutos, con los umbrales de las reglas marcados.
+  - **Fijar:** al mover el control, el sensor queda en ese valor y el simulador publica una lectura enseguida, así las reglas reaccionan sin esperar los 5 s. Los demás siguen simulados.
+  - **Soltar:** el sensor vuelve a simularse, desde el valor en el que estaba.
+- **Actuadores:** la lámpara, el cooler y el riego, con la regla que los maneja y el avance del pulso de riego. El panel no los prende ni los apaga: eso lo hacen las reglas o, en manual, la web.
+- **Conexión:** muestra hasta qué paso llegó (red, saludo TLS, sesión MQTT, servicio) y, si el broker lo rechaza, en cuál y por qué.
+  - **Desconectar:** corta en seco, como desenchufar la placa. El broker publica el Last Will (`offline`) y el bancal sigue solo, en automático.
+  - **Clave privada y certificado de cliente:** apagado, se conecta sin ellos y el broker corta el saludo TLS (`certificate required`), antes de pedir usuario y contraseña.
+  - **Contraseña MQTT:** apagada, el saludo TLS pasa pero el broker rechaza la sesión (`Not authorized`).
+
+  Cambiar cualquiera de los dos reconecta con lo nuevo. Mientras lo rechazan, reintenta cada 5 s.
+- **Registro:** lo mismo que sale por la terminal.
+
+El puerto se cambia con `PANEL_PUERTO` en `.env`.
+
 ## Cómo se corre
 
 1. **El usuario y el certificado** los crea el broker si `secrets/.env` tiene `MQTT_SIMULADOR_USER` y `MQTT_SIMULADOR_PASSWORD`:
    - el usuario MQTT lo crea `mysql-actualizar` en cada `compose up`;
    - el certificado de cliente lo genera el contenedor `certs`, o a mano con `software/broker/security/generar_cliente.sh bancal2esp1`.
 2. **Configuración:** `cp .env.example .env` y poner en `MQTT_PASSWORD` la clave de `MQTT_SIMULADOR_PASSWORD` **del broker al que se conecta**. Por defecto se conecta al servidor: `mqtts://bancal.taile538b8.ts.net:443`.
-3. **Arrancar:** `pnpm install` y `pnpm start`. Se corta con Ctrl+C, y al cerrar publica `offline`.
+3. **Arrancar:** `pnpm install` y `pnpm start`, y abrir http://localhost:8091. Se corta con Ctrl+C, y al cerrar publica `offline`.
 
 Como usa el mismo certificado de cliente que generó tu broker local, firmado por la misma CA que el servidor, sirve contra los dos.
 

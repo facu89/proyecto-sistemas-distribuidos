@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador de ESP32</title>
+<style>
+  :root {
+    color-scheme: light;
+    --fondo: #f3f0e8;
+    --tarjeta: #fcfcfb;
+    --hundido: #f1eee6;
+    --borde: #e3dfd4;
+    --tinta: #1d1b18;
+    --tinta-2: #52514e;
+    --tinta-3: #85837a;
+    --acento: #2c7a4d;
+    --acento-suave: #e3f0e7;
+    --serie: #2a78d6;
+    --serie-suave: rgb(42 120 214 / 0.1);
+    --bien: #1a8a58;
+    --aviso: #a86a00;
+    --mal: #c93a39;
+    --mal-suave: #fbeceb;
+    --lampara: #eda100;
+    --agua: #2a78d6;
+    --sombra: 0 1px 2px rgb(40 30 15 / 0.06), 0 8px 24px -12px rgb(40 30 15 / 0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --fondo: #111110;
+      --tarjeta: #1a1a19;
+      --hundido: #222120;
+      --borde: #2e2d2a;
+      --tinta: #f0efec;
+      --tinta-2: #c3c2b7;
+      --tinta-3: #8b8a82;
+      --acento: #55b683;
+      --acento-suave: #1d2e25;
+      --serie: #3987e5;
+      --serie-suave: rgb(57 135 229 / 0.14);
+      --bien: #3db583;
+      --aviso: #d99a1c;
+      --mal: #e66767;
+      --mal-suave: #2e1c1c;
+      --lampara: #f0b429;
+      --agua: #5b9ff0;
+      --sombra: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--tinta);
+    font: 14px/1.45 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 1240px; margin: 0 auto; padding: 20px 16px 48px; display: grid; gap: 20px; }
+  h1, h2, h3, p { margin: 0; }
+  .num { font-variant-numeric: tabular-nums; }
+  .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
+
+  /* Encabezado */
+  header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .chip-placa {
+    width: 40px; height: 40px; border-radius: 10px; background: var(--acento); color: #fff;
+    display: grid; place-items: center; flex: none;
+  }
+  header h1 { font-size: 20px; letter-spacing: -0.01em; }
+  header .sub { color: var(--tinta-2); font-size: 13px; }
+  header .derecha { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .pastilla {
+    display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 999px;
+    background: var(--tarjeta); border: 1px solid var(--borde); font-size: 13px; color: var(--tinta-2); white-space: nowrap;
+  }
+  .pastilla b { color: var(--tinta); font-weight: 600; }
+  .punto { width: 8px; height: 8px; border-radius: 50%; background: var(--tinta-3); flex: none; }
+  [data-estado='conectado'] .punto { background: var(--bien); }
+  [data-estado='conectando'] .punto { background: var(--aviso); animation: latido 1s infinite; }
+  [data-estado='rechazado'] .punto { background: var(--mal); }
+  @keyframes latido { 50% { opacity: 0.25; } }
+
+  .tarjeta { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 14px; box-shadow: var(--sombra); padding: 16px; min-width: 0; }
+  .titulo-seccion { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tinta-3); margin-bottom: 10px; }
+  .grilla { display: grid; gap: 12px; }
+  .sensores { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .actuadores { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+  /* Conexión */
+  .conexion { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr); gap: 20px; }
+  @media (max-width: 820px) { .conexion { grid-template-columns: 1fr; } }
+  .cadena { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-top: 4px; }
+  .paso { position: relative; padding-right: 10px; min-width: 0; }
+  .paso::before { content: ''; position: absolute; left: 28px; right: 0; top: 13px; height: 2px; background: var(--borde); }
+  .paso:last-child::before { display: none; }
+  .paso[data-e='ok']::before { background: var(--bien); }
+  .paso .marca {
+    position: relative; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--hundido); color: var(--tinta-3); border: 2px solid var(--borde); font-size: 14px; font-weight: 700;
+  }
+  .paso[data-e='ok'] .marca { background: var(--bien); border-color: var(--bien); color: #fff; }
+  .paso[data-e='mal'] .marca { background: var(--mal); border-color: var(--mal); color: #fff; }
+  .paso[data-e='espera'] .marca { border-color: var(--aviso); color: var(--aviso); animation: latido 1s infinite; }
+  .paso[data-e='aviso'] .marca { border-color: var(--aviso); color: var(--aviso); }
+  .paso .nombre { font-weight: 600; margin-top: 8px; }
+  .paso .detalle { color: var(--tinta-2); font-size: 12.5px; overflow-wrap: anywhere; }
+  .veredicto { margin-top: 16px; padding: 10px 12px; border-radius: 10px; background: var(--hundido); color: var(--tinta-2); }
+  .veredicto b { color: var(--tinta); }
+  .veredicto[data-e='mal'] { background: var(--mal-suave); }
+  .veredicto .crudo { display: block; margin-top: 4px; font-size: 12px; color: var(--tinta-3); overflow-wrap: anywhere; }
+  .controles { display: grid; gap: 12px; align-content: start; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .boton {
+    border: 1px solid var(--borde); background: var(--tarjeta); border-radius: 10px; padding: 9px 14px; font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .boton:hover { border-color: var(--tinta-3); }
+  .boton.principal { background: var(--acento); border-color: var(--acento); color: #fff; }
+  .boton.principal:hover { filter: brightness(1.08); }
+  :focus-visible { outline: 2px solid var(--serie); outline-offset: 2px; }
+  .llave { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
+  .llave input { position: absolute; opacity: 0; }
+  .llave .riel { flex: none; width: 38px; height: 22px; border-radius: 999px; background: var(--tinta-3); position: relative; transition: background 0.15s; margin-top: 1px; }
+  .llave .riel::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.15s; }
+  .llave input:checked + .riel { background: var(--acento); }
+  .llave input:checked + .riel::after { transform: translateX(16px); }
+  .llave input:focus-visible + .riel { outline: 2px solid var(--serie); outline-offset: 2px; }
+  .llave .texto b { display: block; }
+  .llave .texto span { color: var(--tinta-2); font-size: 12.5px; }
+
+  /* Sensores */
+  .sensor { display: grid; gap: 10px; align-content: start; padding: 14px; transition: border-color 0.15s; }
+  .sensor[data-fijado='true'] { border-color: var(--acento); }
+  .sensor .cabeza { display: flex; align-items: center; }
+  .sensor .cabeza h3 { font-size: 13px; font-weight: 600; color: var(--tinta-2); margin-right: auto; }
+  .sensor .pie { display: flex; align-items: center; justify-content: space-between; min-height: 22px; }
+  .etiqueta { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: var(--hundido); color: var(--tinta-2); white-space: nowrap; }
+  .sensor[data-fijado='true'] .etiqueta { background: var(--acento-suave); color: var(--acento); font-weight: 600; }
+  .soltar { border: 0; background: none; padding: 2px 4px; font-size: 12px; color: var(--tinta-2); text-decoration: underline; display: none; }
+  .sensor[data-fijado='true'] .soltar { display: inline; }
+  .valor { font-size: 34px; font-weight: 650; letter-spacing: -0.02em; line-height: 1; }
+  .valor small { font-size: 15px; font-weight: 500; color: var(--tinta-2); margin-left: 3px; letter-spacing: 0; }
+  .grafico { position: relative; height: 70px; }
+  .grafico svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .grafico .linea { fill: none; stroke: var(--serie); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+  .grafico .area { fill: var(--serie-suave); }
+  .grafico .umbral { stroke: var(--tinta-3); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+  .grafico .rotulo { position: absolute; left: 0; font-size: 10.5px; color: var(--tinta-3); background: var(--tarjeta); padding: 0 3px; transform: translateY(-50%); pointer-events: none; }
+  .grafico .cursor { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--tinta-3); pointer-events: none; display: none; }
+  .grafico .bolita { position: absolute; width: 9px; height: 9px; border-radius: 50%; background: var(--serie); border: 2px solid var(--tarjeta); transform: translate(-50%, -50%); pointer-events: none; display: none; }
+  .grafico .globo {
+    position: absolute; bottom: calc(100% + 2px); transform: translateX(-50%); white-space: nowrap; pointer-events: none; display: none;
+    background: var(--tinta); color: var(--fondo); font-size: 11.5px; padding: 3px 7px; border-radius: 6px; z-index: 2;
+  }
+  .grafico:hover .cursor, .grafico:hover .bolita, .grafico:hover .globo { display: block; }
+  .grafico .vacio { position: absolute; inset: 0; display: grid; place-items: center; color: var(--tinta-3); font-size: 12px; }
+  .eje { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--tinta-3); margin-top: -6px; }
+  input[type='range'] { width: 100%; margin: 0; accent-color: var(--acento); }
+  .segmentos { display: grid; grid-template-columns: 1fr 1fr; background: var(--hundido); border-radius: 9px; padding: 3px; gap: 3px; }
+  .segmentos button { border: 0; background: none; border-radius: 7px; padding: 6px; color: var(--tinta-2); }
+  .segmentos button[aria-pressed='true'] { background: var(--tarjeta); color: var(--tinta); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+
+  /* Actuadores */
+  .actuador { display: grid; grid-template-columns: 56px 1fr; gap: 14px; align-items: center; align-content: start; padding: 14px; }
+  .actuador .icono { width: 56px; height: 56px; border-radius: 14px; background: var(--hundido); display: grid; place-items: center; color: var(--tinta-3); transition: background 0.3s, color 0.3s, box-shadow 0.3s; }
+  .actuador h3 { font-size: 13px; font-weight: 600; color: var(--tinta-2); }
+  .actuador .estado { font-size: 20px; font-weight: 650; letter-spacing: -0.01em; }
+  .actuador .regla { grid-column: 1 / -1; color: var(--tinta-2); font-size: 12.5px; border-top: 1px solid var(--borde); padding-top: 10px; }
+  .actuador .hace { color: var(--tinta-3); font-size: 12px; }
+  .actuador[data-prendido='true'] .estado { color: var(--tinta); }
+  .actuador[data-prendido='false'] .estado { color: var(--tinta-3); }
+  #a-luz[data-prendido='true'] .icono { background: color-mix(in srgb, var(--lampara) 22%, var(--tarjeta)); color: var(--lampara); box-shadow: 0 0 26px color-mix(in srgb, var(--lampara) 55%, transparent); }
+  #a-cooler[data-prendido='true'] .icono { background: var(--serie-suave); color: var(--serie); }
+  #a-cooler[data-prendido='true'] .aspas { animation: girar 0.7s linear infinite; }
+  .aspas { transform-origin: 12px 12px; }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  #a-riego[data-prendido='true'] .icono { background: var(--serie-suave); color: var(--agua); }
+  #a-riego[data-prendido='true'] .gota { fill: color-mix(in srgb, var(--agua) 30%, transparent); }
+  #a-riego[data-prendido='true'] svg { animation: gotear 0.8s ease-in-out infinite; }
+  @keyframes gotear { 50% { transform: translateY(3px); } }
+  .pulso { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--hundido); overflow: hidden; margin-top: -4px; }
+  .pulso i { display: block; height: 100%; width: 0; background: var(--agua); border-radius: 2px; }
+  .modo dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; }
+  .modo dt { color: var(--tinta-2); }
+  .modo dd { margin: 0; font-weight: 600; text-align: right; }
+  .modo .nota { margin-top: 10px; font-size: 12.5px; color: var(--tinta-2); border-top: 1px solid var(--borde); padding-top: 10px; }
+
+  /* Registro */
+  .registro { max-height: 260px; overflow: auto; font-size: 12px; line-height: 1.6; background: var(--hundido); border-radius: 10px; padding: 10px 12px; }
+  .registro div { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--tinta-2); }
+  .registro time { color: var(--tinta-3); margin-right: 8px; }
+  .registro .fuerte { color: var(--tinta); }
+  .registro .error { color: var(--mal); }
+  .caido { display: none; padding: 10px 14px; border-radius: 10px; background: var(--mal-suave); color: var(--mal); font-weight: 600; }
+  body[data-caido='true'] .caido { display: block; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="chip-placa" aria-hidden="true">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg>
+    </div>
+    <div>
+      <h1 id="nodo">ESP32 simulado</h1>
+      <div class="sub">ESP32 simulado · publica cada <span id="intervalo">5</span> s</div>
+    </div>
+    <div class="derecha">
+      <span class="pastilla">Hora del bancal <b class="num" id="hora">--:--</b></span>
+      <span class="pastilla" id="pastilla-conexion" data-estado="desconectado"><span class="punto"></span><b id="pastilla-texto">Sin conexión</b></span>
+    </div>
+  </header>
+
+  <div class="caido">El simulador no responde: se cerró el proceso (pnpm start). El panel se reconecta solo cuando vuelva.</div>
+
+  <section>
+    <div class="titulo-seccion">Conexión con el broker</div>
+    <div class="tarjeta conexion">
+      <div>
+        <div class="cadena" id="cadena"></div>
+        <div class="veredicto" id="veredicto"></div>
+      </div>
+      <div class="controles">
+        <button class="boton principal" id="boton-conexion">Conectar</button>
+        <label class="llave">
+          <input type="checkbox" id="llave-certificado" checked>
+          <span class="riel"></span>
+          <span class="texto"><b>Clave privada y certificado de cliente</b><span>TLS mutuo: el broker solo acepta en el saludo a quien presente un certificado firmado por su CA.</span></span>
+        </label>
+        <label class="llave">
+          <input type="checkbox" id="llave-clave" checked>
+          <span class="riel"></span>
+          <span class="texto"><b>Contraseña MQTT</b><span>Segunda barrera, ya dentro del canal cifrado: usuario y contraseña del nodo.</span></span>
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="titulo-seccion">Sensores · mové un control para fijar el valor</div>
+    <div class="grilla sensores" id="sensores"></div>
+  </section>
+
+  <section>
+    <div class="titulo-seccion">Actuadores</div>
+    <div class="grilla actuadores">
+      <div class="tarjeta actuador" id="a-luz" data-prendido="false">
+        <div class="icono"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.800 1-2.500A6 6 0 0 0 12 3z"/></svg></div>
+        <div><h3>Lámpara</h3><div class="estado">Apagada</div><div class="hace"></div></div>
+        <div class="regla"></div>
+      </div>
+      <div class="tarjeta actuador" id="a-cooler" data-prendido="false">
+        <div class="icono"><svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><g class="aspas"><path d="M12 11c-1-3-.5-7 2.500-7 2 0 2.500 2 1.500 3.500C15 9 13.500 10 12 11z"/><path d="M13 12c3-1 7-.5 7 2.500 0 2-2 2.500-3.500 1.500C15 15 14 13.500 13 12z"/><path d="M12 13c1 3 .5 7-2.500 7-2 0-2.500-2-1.500-3.500C9 15 10.500 14 12 13z"/><path d="M11 12c-3 1-7 .5-7-2.500 0-2 2-2.500 3.500-1.500C9 9 10 10.500 11 12z"/></g><circle cx="12" cy="12" r="1.600"/></svg></div>
+        <div><h3>Cooler</h3><div class="estado">Apagado</div><div class="hace"></div></div>
+        <div class="regla"></div>
+      </div>
+      <div class="tarjeta actuador" id="a-riego" data-prendido="false">
+        <div class="icono"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path class="gota" d="M12 3.500s5.500 6 5.500 10.500a5.500 5.500 0 0 1-11 0C6.500 9.500 12 3.500 12 3.500z"/><path d="M9.500 14.500a2.500 2.500 0 0 0 2.500 2.500"/></svg></div>
+        <div><h3>Riego</h3><div class="estado">Apagado</div><div class="hace"></div></div>
+        <div class="pulso"><i></i></div>
+        <div class="regla"></div>
+      </div>
+      <div class="tarjeta modo">
+        <dl>
+          <dt>Modo configurado</dt><dd id="modo-config">–</dd>
+          <dt>Modo en uso</dt><dd id="modo-efectivo">–</dd>
+          <dt>Servicio</dt><dd id="servicio">–</dd>
+          <dt>Configuración</dt><dd class="num" id="version">–</dd>
+        </dl>
+        <div class="nota" id="modo-nota"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="titulo-seccion">Registro</div>
+    <div class="tarjeta"><div class="registro mono" id="registro"></div></div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id)
+const VENTANA = 5 * 60_000
+const SENSORES = [
+  { id: 'temperaturaAire', nombre: 'Temperatura aire', unidad: '°C', paso: 0.1, decimales: 1,
+    umbrales: (u) => [[u.ventiladorEncenderDesde, 'cooler ≥'], [u.ventiladorApagarDebajoDe, 'apaga <']] },
+  { id: 'humedadAire', nombre: 'Humedad aire', unidad: '%', paso: 1, decimales: 0, fijo: [0, 100] },
+  { id: 'temperaturaSuelo', nombre: 'Temperatura suelo', unidad: '°C', paso: 0.1, decimales: 1 },
+  { id: 'humedadSuelo', nombre: 'Humedad suelo', unidad: '%', paso: 1, decimales: 0, fijo: [0, 100],
+    umbrales: (u) => [[u.riegoEncenderDebajoDe, 'riega <'], [u.riegoApagarDesde, 'corta ≥']] },
+  { id: 'luz', nombre: 'Luz', binario: true, fijo: [-0.15, 1.15] },
+]
+let estado = null, historia = [], limites = {}
+const tocando = new Set() // controles que se están arrastrando: no pisarlos con lo que llega
+
+const mandar = (ruta, cuerpo) => fetch(ruta, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(cuerpo) }).catch(() => {})
+const hora = (t) => new Date(t).toLocaleTimeString('es-AR', { hour12: false })
+const formato = (def, v) => def.binario ? (v ? 'Hay luz' : 'Oscuro') : `${v.toFixed(def.decimales).replace('.', ',')} ${def.unidad}`
+
+// ---- Sensores ----
+function armarSensores() {
+  $('sensores').innerHTML = SENSORES.map((d) => `
+    <div class="tarjeta sensor" id="s-${d.id}" data-fijado="false">
+      <div class="cabeza"><h3>${d.nombre}</h3></div>
+      <div class="valor num"></div>
+      <div class="grafico" tabindex="0" aria-label="Últimos 5 minutos de ${d.nombre.toLowerCase()}">
+        <svg viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden="true"></svg>
+        <div class="rotulos"></div><div class="cursor"></div><div class="bolita"></div><div class="globo num"></div>
+      </div>
+      <div class="eje"><span>hace 5 min</span><span>ahora</span></div>
+      ${d.binario
+        ? `<div class="segmentos"><button data-v="0">Oscuro</button><button data-v="1">Hay luz</button></div>`
+        : `<input type="range" step="${d.paso}" aria-label="Fijar ${d.nombre.toLowerCase()}">`}
+      <div class="pie"><span class="etiqueta">Simulado</span><button class="soltar" title="Volver al valor simulado">Soltar</button></div>
+    </div>`).join('')
+  for (const d of SENSORES) {
+    const el = $(`s-${d.id}`)
+    el.querySelector('.soltar').onclick = () => mandar('/api/sensor', { sensor: d.id, fijado: false })
+    if (d.binario) {
+      el.querySelectorAll('.segmentos button').forEach((b) => (b.onclick = () => mandar('/api/sensor', { sensor: d.id, valor: Number(b.dataset.v) })))
+    } else {
+      const r = el.querySelector('input')
+      let ultimo = 0, pendiente = null
+      const enviar = () => { ultimo = Date.now(); pendiente = null; mandar('/api/sensor', { sensor: d.id, valor: Number(r.value) }) }
+      r.oninput = () => {
+        tocando.add(d.id)
+        el.querySelector('.valor').innerHTML = valorHtml(d, Number(r.value))
+        if (Date.now() - ultimo > 80) enviar()
+        else pendiente ??= setTimeout(enviar, 80)
+      }
+      r.onchange = () => { enviar(); setTimeout(() => tocando.delete(d.id), 400) }
+    }
+    const g = el.querySelector('.grafico')
+    g.onmousemove = (e) => senalar(d, g, (e.clientX - g.getBoundingClientRect().left) / g.clientWidth)
+  }
+}
+const valorHtml = (d, v) => d.binario ? (v ? 'Hay luz' : 'Oscuro') : `${v.toFixed(d.decimales).replace('.', ',')}<small>${d.unidad}</small>`
+
+function escala(d) {
+  const t1 = estado.ahora, t0 = t1 - VENTANA
+  const pts = historia.filter((m) => m.t >= t0)
+  const marcas = d.umbrales ? d.umbrales(estado.config.umbrales) : []
+  let lo, hi
+  if (d.fijo) [lo, hi] = d.fijo
+  else {
+    const vs = [...pts.map((p) => p.s[d.id]), estado.sensores[d.id], ...marcas.map((m) => m[0])]
+    lo = Math.min(...vs); hi = Math.max(...vs)
+    const aire = Math.max(1, (hi - lo) * 0.15)
+    lo -= aire; hi += aire
+  }
+  return { pts, marcas, x: (t) => ((t - t0) / VENTANA) * 300, y: (v) => 66 - ((v - lo) / (hi - lo)) * 62 }
+}
+
+function dibujar(d) {
+  const g = $(`s-${d.id}`).querySelector('.grafico')
+  const { pts, marcas, x, y } = escala(d)
+  let svg = marcas.map(([v]) => `<line class="umbral" x1="0" x2="300" y1="${y(v)}" y2="${y(v)}"/>`).join('')
+  if (pts.length > 1) {
+    const paso = d.binario // la luz es un escalón, no una rampa
+    const camino = pts.map((p, i) => `${i ? (paso ? `H${x(p.t).toFixed(1)}V` : 'L') : 'M'}${paso && i ? '' : x(p.t).toFixed(1) + ','}${y(p.s[d.id]).toFixed(1)}`).join('')
+    svg += `<path class="area" d="${camino}V70H${x(pts[0].t).toFixed(1)}Z"/><path class="linea" d="${camino}"/>`
+  }
+  g.querySelector('svg').innerHTML = svg
+  g.querySelector('.rotulos').innerHTML =
+    marcas.map(([v, texto]) => `<span class="rotulo" style="top:${(y(v) / 70) * 100}%">${texto} ${v}</span>`).join('') +
+    (pts.length > 1 ? '' : '<div class="vacio">Juntando lecturas…</div>')
+}
+
+function senalar(d, g, fraccion) {
+  const { pts, x, y } = escala(d)
+  if (!pts.length) return
+  const p = pts.reduce((a, b) => (Math.abs(x(b.t) / 300 - fraccion) < Math.abs(x(a.t) / 300 - fraccion) ? b : a))
+  const izq = `${(x(p.t) / 300) * 100}%`
+  g.querySelector('.cursor').style.left = izq
+  Object.assign(g.querySelector('.bolita').style, { left: izq, top: `${(y(p.s[d.id]) / 70) * 100}%` })
+  const globo = g.querySelector('.globo')
+  globo.textContent = `${formato(d, p.s[d.id])} · ${hora(p.t)}`
+  globo.style.left = `clamp(60px, ${izq}, calc(100% - 60px))`
+}
+
+function pintarSensores() {
+  for (const d of SENSORES) {
+    const el = $(`s-${d.id}`), v = estado.sensores[d.id], fijado = estado.fijados.includes(d.id)
+    el.dataset.fijado = fijado
+    el.querySelector('.etiqueta').textContent = fijado ? 'Fijado' : 'Simulado'
+    if (d.binario) el.querySelectorAll('.segmentos button').forEach((b) => b.setAttribute('aria-pressed', Number(b.dataset.v) === v))
+    if (tocando.has(d.id)) continue
+    el.querySelector('.valor').innerHTML = valorHtml(d, v)
+    const r = el.querySelector('input')
+    if (r) { [r.min, r.max] = limites[d.id] ?? [0, 100]; r.value = v }
+  }
+}
+
+// ---- Conexión ----
+function pintarConexion() {
+  const c = estado.conexion
+  const textos = { conectado: 'Conectado', conectando: 'Conectando…', rechazado: 'Rechazado', desconectado: 'Desconectado' }
+  $('pastilla-conexion').dataset.estado = c.estado
+  $('pastilla-texto').textContent = textos[c.estado]
+  $('boton-conexion').textContent = c.deseada ? 'Desconectar (corte en seco)' : 'Conectar'
+  $('boton-conexion').classList.toggle('principal', !c.deseada)
+  $('llave-certificado').checked = c.certificado
+  $('llave-clave').checked = c.clave
+
+  // Cada paso: ok, mal, espera (intentando), aviso o nada (no se llegó)
+  const orden = ['red', 'tls', 'mqtt']
+  const falla = c.fallo ? orden.indexOf(c.fallo.etapa) : -1
+  const e = (i) => c.estado === 'conectado' ? 'ok' : c.estado === 'conectando' ? 'espera' : c.estado === 'rechazado' ? (i < falla ? 'ok' : i === falla ? 'mal' : '') : ''
+  const pasos = [
+    ['Red', new URL(estado.url.replace(/^mqtts/, 'https')).host, e(0)],
+    ['Saludo TLS', c.certificado ? 'con certificado y clave privada' : 'sin certificado de cliente', e(1)],
+    ['Sesión MQTT', c.clave ? 'usuario y contraseña' : 'usuario sin contraseña', e(2)],
+    ['Servicio', c.estado !== 'conectado' ? 'no se ve desde acá' : c.servicio ? 'en línea' : 'no está en línea', c.estado !== 'conectado' ? '' : c.servicio ? 'ok' : 'aviso'],
+  ]
+  const marca = { ok: '✓', mal: '✕', espera: '…', aviso: '!', '': '' }
+  $('cadena').innerHTML = pasos.map(([n, det, est], i) => `<div class="paso" data-e="${est}"><div class="marca">${marca[est] || i + 1}</div><div class="nombre">${n}</div><div class="detalle">${det}</div></div>`).join('')
+
+  const v = $('veredicto')
+  v.dataset.e = c.estado === 'rechazado' ? 'mal' : ''
+  if (c.estado === 'rechazado') v.innerHTML = `<b>✕ ${c.fallo.explicacion}</b> Reintenta cada 5 s.<span class="crudo mono">${c.fallo.mensaje.replace(/</g, '&lt;')}</span>`
+  else if (c.estado === 'conectado') v.innerHTML = c.servicio
+    ? '<b>✓ Conectado.</b> Publica las lecturas y recibe la configuración y las órdenes del servicio.'
+    : '<b>! Conectado, pero el servicio no está en línea.</b> El bancal decide solo, en automático.'
+  else if (c.estado === 'conectando') v.innerHTML = '<b>Conectando…</b>'
+  else v.innerHTML = '<b>Desconectado.</b> El bancal sigue funcionando solo, en automático, con la última configuración que recibió. Para el broker fue un corte: publicó el Last Will (<span class="mono">offline</span>).'
+}
+
+// ---- Actuadores y modo ----
+function pintarActuadores() {
+  const u = estado.config.umbrales
+  const reglas = {
+    luz: `Prende cuando está oscuro${u.luzHorario ? `, entre las ${u.luzHorario.desde} y las ${u.luzHorario.hasta}` : ''}; apaga cuando hay luz.`,
+    cooler: `Prende con el aire a ${u.ventiladorEncenderDesde} °C o más; apaga por debajo de ${u.ventiladorApagarDebajoDe} °C.`,
+    riego: `Riega con el suelo por debajo de ${u.riegoEncenderDebajoDe} % hasta llegar a ${u.riegoApagarDesde} %, en pulsos de ${u.riegoPulsoSegundos} s con ${u.riegoEsperaLecturas} lecturas de espera.`,
+  }
+  for (const [a, { prendido, desde }] of Object.entries(estado.actuadores)) {
+    const el = $(`a-${a}`)
+    el.dataset.prendido = prendido
+    const o = a === 'luz' ? 'a' : 'o'
+    el.querySelector('.estado').textContent = prendido ? (a === 'riego' ? 'Regando' : `Prendid${o}`) : `Apagad${o}`
+    const s = Math.max(0, Math.round((estado.ahora - desde) / 1000))
+    el.querySelector('.hace').textContent = `hace ${s < 60 ? `${s} s` : s < 3600 ? `${Math.floor(s / 60)} min` : `${Math.floor(s / 3600)} h`}`
+    el.querySelector('.regla').textContent = estado.modoEfectivo === 'manual' ? 'Modo manual: obedece las órdenes de la web.' : reglas[a]
+  }
+  const r = estado.actuadores.riego
+  $('a-riego').querySelector('.pulso i').style.width = r.prendido ? `${Math.min(100, ((estado.ahora - r.desde) / (u.riegoPulsoSegundos * 1000)) * 100)}%` : '0'
+
+  const nombre = { automatico: 'Automático', manual: 'Manual' }
+  $('modo-config').textContent = nombre[estado.config.modo]
+  $('modo-efectivo').textContent = nombre[estado.modoEfectivo]
+  $('servicio').textContent = estado.conexion.estado !== 'conectado' ? 'Sin conexión' : estado.conexion.servicio ? 'En línea' : 'Fuera de línea'
+  $('version').textContent = !estado.config.v ? 'de fábrica' : estado.config.v > 1e12 ? `del ${new Date(estado.config.v).toLocaleString('es-AR', { hour12: false, day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}` : `v${estado.config.v}`
+  $('modo-nota').textContent = estado.config.modo === 'manual' && estado.modoEfectivo === 'automatico'
+    ? 'Está configurado en manual, pero sin el servicio no hay quién le mande órdenes: pasa a automático hasta que vuelva.'
+    : estado.modoEfectivo === 'manual' ? 'Las reglas no corren: los actuadores solo cambian con las órdenes de la web.'
+    : 'El bancal aplica las reglas con cada lectura. Los rangos se cambian desde la web.'
+}
+
+function pintar() {
+  if (!estado) return
+  $('nodo').textContent = estado.nodo
+  document.title = `${estado.nodo} · simulador`
+  $('intervalo').textContent = estado.intervaloMs / 1000
+  $('hora').textContent = `${String(Math.floor(estado.minuto / 60)).padStart(2, '0')}:${String(estado.minuto % 60).padStart(2, '0')}`
+  pintarSensores(); pintarConexion(); pintarActuadores()
+}
+
+function anotar({ t, texto }) {
+  const r = $('registro'), abajo = r.scrollHeight - r.scrollTop - r.clientHeight < 30
+  const d = document.createElement('div')
+  d.className = /rechazad|No se pudo|cortó/i.test(texto) ? 'error' : /^(Regla|Riego|Orden|Conectado|Configuración|Modo|Sin servicio|Desconectado)/.test(texto) ? 'fuerte' : ''
+  d.innerHTML = `<time>${hora(t)}</time>`
+  d.append(texto)
+  r.append(d)
+  while (r.children.length > 300) r.firstChild.remove()
+  if (abajo) r.scrollTop = r.scrollHeight
+}
+
+armarSensores()
+$('boton-conexion').onclick = () => mandar('/api/conexion', { conectar: !estado.conexion.deseada })
+$('llave-certificado').onchange = (e) => mandar('/api/conexion', { certificado: e.target.checked })
+$('llave-clave').onchange = (e) => mandar('/api/conexion', { clave: e.target.checked })
+
+const eventos = new EventSource('/eventos')
+eventos.addEventListener('inicio', (e) => {
+  const d = JSON.parse(e.data)
+  ;({ estado, historia, limites } = d)
+  document.body.dataset.caido = false
+  $('registro').innerHTML = ''
+  d.logs.forEach(anotar)
+  pintar(); SENSORES.forEach(dibujar)
+})
+eventos.addEventListener('estado', (e) => { estado = JSON.parse(e.data); pintar() })
+eventos.addEventListener('muestra', (e) => {
+  historia.push(JSON.parse(e.data))
+  while (historia.length && historia[0].t < Date.now() - VENTANA - 60_000) historia.shift()
+  SENSORES.forEach(dibujar)
+})
+eventos.addEventListener('log', (e) => anotar(JSON.parse(e.data)))
+eventos.onerror = () => (document.body.dataset.caido = true)
+</script>
+</body>
+</html>

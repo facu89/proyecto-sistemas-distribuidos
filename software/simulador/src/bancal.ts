@@ -129,10 +129,15 @@ export function crearBancal(salida: Salida, config: Configuracion = CONFIG_POR_D
     actuadores,
     configuracion: () => config,
 
-    /** Lecturas nuevas (cada INTERVALO_MS). */
-    alLeer(s: Sensores, ahora: number) {
+    modoEfectivo: efectivo,
+
+    /**
+     * Lecturas nuevas (cada INTERVALO_MS). `cuentaParaLaEspera` es false en las lecturas de más que pide el
+     * panel al mover un sensor: aplican las reglas enseguida, pero no acortan la espera entre pulsos de riego.
+     */
+    alLeer(s: Sensores, ahora: number, cuentaParaLaEspera = true) {
       lecturas = s
-      if (!pulso.regando && pulso.espera > 0) pulso.espera--
+      if (cuentaParaLaEspera && !pulso.regando && pulso.espera > 0) pulso.espera--
       if (efectivo() === 'automatico') aplicarReglas(ahora, 'lectura')
     },
 
