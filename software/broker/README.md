@@ -40,11 +40,11 @@ docker compose up -d
 
 | Puerto | Uso |
 |---|---|
-| 1883 | MQTT sin cifrar (queda hasta que todos usen TLS) |
-| 8883 | MQTT sobre TLS: lo usan el ESP32 y el servicio |
-| 8083 | MQTT por WebSocket sin cifrar |
+| 8883 | MQTT sobre TLS: lo usan el ESP32 y el servicio. Es el único puerto MQTT abierto |
 | 18083 | Panel de EMQX (usuario y clave en `secrets/.env`) |
 | 8080 | Web y API del servicio |
+
+Los listeners sin cifrar de EMQX (1883 MQTT y 8083 WebSocket) están apagados en `config/emqx.conf` y no se publican en `compose.yaml`: solo se entra por TLS.
 
 ## TLS: certificados
 

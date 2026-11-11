@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="677" viewBox="0 0 1100 677" font-family="Segoe UI, system-ui, -apple-system, Roboto, sans-serif">
+<rect width="1100" height="677" fill="#ffffff"/>
+<text x="35" y="42" font-size="22" font-weight="700" fill="#1f2328">ACL del broker: quién puede publicar y suscribirse a cada tópico</text>
+<text x="35" y="66" font-size="13" fill="#5a6270">Reglas en MySQL (tabla mqtt_acl), evaluadas por EMQX en cada publish y subscribe. Lo que no figura se deniega (no_match = deny).</text>
+<rect x="35" y="85" width="1030" height="72" rx="10" fill="#f3f4f6"/>
+<text x="51" y="127" font-size="13" font-weight="700" fill="#5a6270">USUARIO MQTT</text>
+<text x="354" y="109" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1f2328">Lecturas</text>
+<text x="354" y="128" text-anchor="middle" font-size="11.5" font-family="Consolas, Menlo, monospace" fill="#5a6270">{nodoId}/</text>
+<text x="354" y="144" text-anchor="middle" font-size="11.5" font-family="Consolas, Menlo, monospace" fill="#5a6270">sensor/{tipo}</text>
+<text x="512" y="109" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1f2328">Órdenes</text>
+<text x="512" y="128" text-anchor="middle" font-size="11.5" font-family="Consolas, Menlo, monospace" fill="#5a6270">{nodoId}/</text>
+<text x="512" y="144" text-anchor="middle" font-size="11.5" font-family="Consolas, Menlo, monospace" fill="#5a6270">actuador/{tipo}/cmd</text>
+<text x="670" y="109" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1f2328">Estado real</text>
+<text x="670" y="128" text-anchor="middle" font-size="11.5" font-family="Consolas, Menlo, monospace" fill="#5a6270">{nodoId}/</text>
+<text x="670" y="144" text-anchor="middle" font-size="11.5" font-family="Consolas, Menlo, monospace" fill="#5a6270">actuador/{tipo}/estado</text>
+<text x="828" y="109" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1f2328">Presencia</text>
+<text x="828" y="128" text-anchor="middle" font-size="11.5" font-family="Consolas, Menlo, monospace" fill="#5a6270">{nodoId}/</text>
+<text x="828" y="144" text-anchor="middle" font-size="11.5" font-family="Consolas, Menlo, monospace" fill="#5a6270">presencia</text>
+<text x="986" y="109" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1f2328">Alertas</text>
+<text x="986" y="128" text-anchor="middle" font-size="11.5" font-family="Consolas, Menlo, monospace" fill="#5a6270">alertas/</text>
+<text x="986" y="144" text-anchor="middle" font-size="11.5" font-family="Consolas, Menlo, monospace" fill="#5a6270">…</text>
+<line x1="35" y1="237" x2="1065" y2="237" stroke="#e5e7eb"/>
+<text x="51" y="187" font-size="15" font-weight="700" fill="#1f2328">ESP32 (cada nodo)</text>
+<text x="51" y="206" font-size="12" fill="#5a6270">usuario = su nodoId (bancal1esp1)</text>
+<text x="51" y="222" font-size="12" fill="#5a6270">regla $all con ${username}</text>
+<rect x="308" y="179" width="92" height="24" rx="12" fill="#e2f2e7"/>
+<text x="354" y="195.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#22693f">PUBLICA</text>
+<text x="354" y="219" text-anchor="middle" font-size="11" fill="#5a6270">solo su nodo</text>
+<rect x="466" y="179" width="92" height="24" rx="12" fill="#e3ebfa"/>
+<text x="512" y="195.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#2a56a5">SUSCRIBE</text>
+<text x="512" y="219" text-anchor="middle" font-size="11" fill="#5a6270">solo su nodo</text>
+<rect x="624" y="179" width="92" height="24" rx="12" fill="#e2f2e7"/>
+<text x="670" y="195.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#22693f">PUBLICA</text>
+<text x="670" y="219" text-anchor="middle" font-size="11" fill="#5a6270">solo su nodo</text>
+<rect x="782" y="179" width="92" height="24" rx="12" fill="#e2f2e7"/>
+<text x="828" y="195.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#22693f">PUBLICA</text>
+<text x="828" y="219" text-anchor="middle" font-size="11" fill="#5a6270">online + Last Will</text>
+<text x="986" y="196" text-anchor="middle" font-size="16" fill="#b4b9c2">—</text>
+<text x="986" y="217" text-anchor="middle" font-size="11" fill="#9aa1ab">denegado</text>
+<rect x="35" y="237" width="1030" height="80" fill="#fafafb"/>
+<line x1="35" y1="317" x2="1065" y2="317" stroke="#e5e7eb"/>
+<text x="51" y="267" font-size="15" font-weight="700" fill="#1f2328">servicio</text>
+<text x="51" y="286" font-size="12" fill="#5a6270">servicio central</text>
+<text x="51" y="302" font-size="12" fill="#5a6270">único que da órdenes</text>
+<rect x="308" y="259" width="92" height="24" rx="12" fill="#e3ebfa"/>
+<text x="354" y="275.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#2a56a5">SUSCRIBE</text>
+<text x="354" y="299" text-anchor="middle" font-size="11" fill="#5a6270">todos los nodos (+)</text>
+<rect x="466" y="259" width="92" height="24" rx="12" fill="#e2f2e7"/>
+<text x="512" y="275.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#22693f">PUBLICA</text>
+<text x="512" y="299" text-anchor="middle" font-size="11" fill="#5a6270">todos los nodos (+)</text>
+<rect x="624" y="259" width="92" height="24" rx="12" fill="#e3ebfa"/>
+<text x="670" y="275.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#2a56a5">SUSCRIBE</text>
+<text x="670" y="299" text-anchor="middle" font-size="11" fill="#5a6270">todos los nodos (+)</text>
+<rect x="782" y="259" width="92" height="24" rx="12" fill="#e3ebfa"/>
+<text x="828" y="275.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#2a56a5">SUSCRIBE</text>
+<text x="828" y="299" text-anchor="middle" font-size="11" fill="#5a6270">todos los nodos (+)</text>
+<rect x="940" y="259" width="92" height="24" rx="12" fill="#e3ebfa"/>
+<text x="986" y="275.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#2a56a5">SUSCRIBE</text>
+<text x="986" y="299" text-anchor="middle" font-size="11" fill="#5a6270">alertas/#</text>
+<line x1="35" y1="397" x2="1065" y2="397" stroke="#e5e7eb"/>
+<text x="51" y="347" font-size="15" font-weight="700" fill="#1f2328">cliente_web</text>
+<text x="51" y="366" font-size="12" fill="#5a6270">solo lectura</text>
+<text x="51" y="382" font-size="12" fill="#5a6270">(depuración)</text>
+<rect x="308" y="339" width="92" height="24" rx="12" fill="#e3ebfa"/>
+<text x="354" y="355.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#2a56a5">SUSCRIBE</text>
+<text x="354" y="379" text-anchor="middle" font-size="11" fill="#5a6270">todos los nodos (+)</text>
+<text x="512" y="356" text-anchor="middle" font-size="16" fill="#b4b9c2">—</text>
+<text x="512" y="377" text-anchor="middle" font-size="11" fill="#9aa1ab">denegado</text>
+<rect x="624" y="339" width="92" height="24" rx="12" fill="#e3ebfa"/>
+<text x="670" y="355.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#2a56a5">SUSCRIBE</text>
+<text x="670" y="379" text-anchor="middle" font-size="11" fill="#5a6270">todos los nodos (+)</text>
+<rect x="782" y="339" width="92" height="24" rx="12" fill="#e3ebfa"/>
+<text x="828" y="355.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#2a56a5">SUSCRIBE</text>
+<text x="828" y="379" text-anchor="middle" font-size="11" fill="#5a6270">todos los nodos (+)</text>
+<rect x="940" y="339" width="92" height="24" rx="12" fill="#e3ebfa"/>
+<text x="986" y="355.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#2a56a5">SUSCRIBE</text>
+<text x="986" y="379" text-anchor="middle" font-size="11" fill="#5a6270">alertas/#</text>
+<rect x="35" y="397" width="1030" height="80" fill="#fafafb"/>
+<line x1="35" y1="477" x2="1065" y2="477" stroke="#e5e7eb"/>
+<text x="51" y="427" font-size="15" font-weight="700" fill="#1f2328">admin</text>
+<text x="51" y="446" font-size="12" fill="#5a6270">superusuario</text>
+<rect x="480" y="419" width="380" height="24" rx="12" fill="#ece6f7"/>
+<text x="670" y="435.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#5b3f94">PUBLICA Y SUSCRIBE A TODO  ( # )</text>
+<text x="670" y="461" text-anchor="middle" font-size="11.5" fill="#5a6270">solo para administrar y depurar; no lo usa ningún componente</text>
+<line x1="35" y1="557" x2="1065" y2="557" stroke="#e5e7eb"/>
+<text x="51" y="507" font-size="15" font-weight="700" fill="#1f2328">Motor de reglas EMQX</text>
+<text x="51" y="526" font-size="12" fill="#5a6270">interno del broker</text>
+<text x="51" y="542" font-size="12" fill="#5a6270">no es un cliente: sin ACL</text>
+<rect x="308" y="499" width="92" height="24" rx="12" fill="#fbeed6"/>
+<text x="354" y="515.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#8a5600">LEE</text>
+<text x="354" y="539" text-anchor="middle" font-size="11" fill="#5a6270">→ historial MySQL</text>
+<text x="512" y="516" text-anchor="middle" font-size="16" fill="#b4b9c2">—</text>
+<text x="512" y="537" text-anchor="middle" font-size="11" fill="#9aa1ab">no lo usa</text>
+<text x="670" y="516" text-anchor="middle" font-size="16" fill="#b4b9c2">—</text>
+<text x="670" y="537" text-anchor="middle" font-size="11" fill="#9aa1ab">no lo usa</text>
+<rect x="782" y="499" width="92" height="24" rx="12" fill="#fbeed6"/>
+<text x="828" y="515.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#8a5600">LEE</text>
+<text x="828" y="539" text-anchor="middle" font-size="11" fill="#5a6270">→ alerta nodo_offline</text>
+<rect x="940" y="499" width="92" height="24" rx="12" fill="#fbeed6"/>
+<text x="986" y="515.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#8a5600">PUBLICA</text>
+<text x="986" y="539" text-anchor="middle" font-size="11" fill="#5a6270">nodo_offline/{nodoId}, servicio</text>
+<rect x="35" y="579" width="92" height="24" rx="12" fill="#e2f2e7"/>
+<text x="81" y="595.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#22693f">PUBLICA</text>
+<text x="137" y="595.5" font-size="12.5" fill="#1f2328">puede publicar</text>
+<rect x="257.4" y="579" width="92" height="24" rx="12" fill="#e3ebfa"/>
+<text x="303.4" y="595.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#2a56a5">SUSCRIBE</text>
+<text x="359.4" y="595.5" font-size="12.5" fill="#1f2328">puede suscribirse</text>
+<rect x="499.5999999999999" y="579" width="92" height="24" rx="12" fill="#fbeed6"/>
+<text x="545.5999999999999" y="595.5" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#8a5600">LEE</text>
+<text x="601.5999999999999" y="595.5" font-size="12.5" fill="#1f2328">interno del broker (reglas): no pasa por la ACL</text>
+<text x="939.8" y="596" font-size="16" fill="#b4b9c2">—</text><text x="961.8" y="595.5" font-size="12.5" fill="#1f2328">denegado</text>
+<text x="35" y="627" font-size="12.5" fill="#5a6270">${username}: EMQX lo reemplaza por el usuario con que se autenticó el cliente. Una sola regla sirve para todos los ESP32 y ninguno puede publicar</text>
+<text x="35" y="645" font-size="12.5" fill="#5a6270">ni leer en los tópicos de otro nodo (bancal1esp1 no puede tocar bancal2esp1/…). El servicio es el único que publica órdenes y ningún cliente puede publicar alertas.</text>
+</svg>

@@ -21,11 +21,11 @@ services:
     container_name: emqx
     restart: unless-stopped
     env_file: secrets/.env
+    # Solo MQTT por TLS (8883) y el panel. Los listeners sin cifrar (1883 TCP, 8083 WebSocket) y el
+    # WebSocket TLS (8084) están apagados en config/emqx.conf, así que tampoco se usan desde adentro.
     ports:
-      - "1883:1883"
-      - "8883:8883"   # Puerto TLS seguro
-      - "8083:8083"
-      - "18083:18083"
+      - "8883:8883"   # MQTT sobre TLS
+      - "18083:18083" # Panel de EMQX
     volumes:
       - emqx-data:/opt/emqx/data
       # ",z": en sistemas con SELinux (Fedora + Podman) etiqueta los archivos para que el

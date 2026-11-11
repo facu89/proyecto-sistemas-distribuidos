@@ -51,7 +51,7 @@ Las aplica el servicio ([`software/servicio/src/reglas.ts`](software/servicio/sr
 - [ ] Resolver la IP del broker por nombre (mDNS, por ejemplo `broker.local`) en vez de fijarla en `config.h`. Así no habría que volver a grabar el ESP32 al cambiar de red. El certificado tendría que incluir ese nombre.
 
 ### Broker y seguridad
-- [ ] Cerrar los puertos sin cifrar (1883 y 8083) cuando todos los clientes usen TLS.
+- [x] Cerrar los puertos sin cifrar (1883 y 8083): apagados en `emqx.conf` y fuera de `compose.yaml`.
 - [ ] Servir la web por HTTPS si se va a abrir desde otros equipos: un certificado para el servicio firmado por la misma CA, que cada navegador tendría que tener instalada.
 
 ### Motor de reglas de EMQX (*Rule Engine*)
