@@ -8,13 +8,14 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "start": "node --env-file=../broker/secrets/.env --env-file-if-exists=.env src/main.ts",
-    "dev": "node --watch --env-file=../broker/secrets/.env --env-file-if-exists=.env src/main.ts",
+    "start": "node --env-file=../broker/secrets/servicio.env --env-file-if-exists=.env src/main.ts",
+    "dev": "node --watch --env-file=../broker/secrets/servicio.env --env-file-if-exists=.env src/main.ts",
     "test": "node --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "mqtt": "^5.16.1"
+    "mqtt": "^5.16.1",
+    "mysql2": "^3.24.6"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

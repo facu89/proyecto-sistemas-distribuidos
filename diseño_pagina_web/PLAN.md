@@ -177,7 +177,14 @@ Se cambió el enfoque: la web **no se conecta al broker**. El servicio ([`softwa
 - [ ] Alertas (cuando el servicio las genere)
 - [x] Selector de bancal en la interfaz (`src/panel/SelectorBancal.tsx`): botón "Vivero" abajo al centro que despliega una card horizontal con los bancales, con presencia y alerta de cada nodo; la elección se guarda en `?nodo=`
 - [x] **Modo automático / manual** en el panel de actuadores. En manual los interruptores le piden la orden al servicio (`POST`) y las reglas no actúan hasta volver a automático. Al volver se aplican las reglas con las últimas lecturas. El botón muestra la etiqueta "Manual".
-- [ ] **Modificar los rangos desde la web:** editar los umbrales de riego y del cooler en el panel (`POST` al servicio). Habría que validar que el de apagar quede del lado correcto del de prender y guardarlos para que no se pierdan al reiniciar el servicio.
+- [x] **Rangos por bancal** (`src/panel/EditorRango.tsx`): el lápiz de cada actuador abre su rango. Riego y cooler llevan dos campos y una barra que muestra dónde prende y dónde apaga; la luz, un horario opcional. Valida con la misma función que el servicio (`validarUmbrales`). "Volver a los de por defecto" aparece si el bancal tiene rangos propios. El dashboard muestra los umbrales del bancal elegido.
+- [x] **Dashboard del historial** (`src/historial/`). Muestra lo que guarda la regla `guardar_historial` de EMQX en `historial_lecturas`: una lectura por sensor cada 10 min, 14 días. Los datos vienen de `GET /api/historial` del servicio.
+  - **Apertura:** botón **▲ Historial** abajo al centro. Sube una hoja a pantalla completa, que se cierra con **▼**, Escape o el "atrás" del navegador. Mientras está abierta, la escena 3D deja de dibujarse.
+  - **Filtros:** arriba, el sensor (`Todos` o uno) y el período (24 h, 7 días, 14 días).
+  - **Gráficos (uPlot):** nunca dos ejes Y en un mismo gráfico. Con `Todos` van dos, con el cursor sincronizado: temperaturas (°C) y humedades (%). La luz sombrea de fondo los tramos de noche. Con un solo sensor se ve su gráfico y, en humedad del suelo y temperatura del aire, los umbrales de las reglas. El cartel del cursor muestra la hora y el valor de cada sensor.
+  - **Colores:** uno fijo por sensor, validado para daltonismo con el script de la skill de dataviz (ver `historial.css`).
+  - **Tablas:** bajando, una por sensor con hora y valor, en ventanas de 6 horas (unas 36 filas). Las flechas `<` `>` del título van 6 horas para atrás o para adelante, hasta los 14 días. Muestran solo el sensor elegido, con una transición al cambiar.
+  - **Refresco:** cada 5 minutos mientras está abierto.
 
 Lo que queda del sistema completo (firmware, broker, servicio) está en [Pendientes del README principal](../README.md#pendientes).
 

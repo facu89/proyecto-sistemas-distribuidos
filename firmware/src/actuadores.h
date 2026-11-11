@@ -12,5 +12,7 @@ void actuadoresIniciar();
 int actuadoresAplicar(const char *tipo, const char *valor);
 
 size_t actuadoresCantidad();
+// Índice del actuador de ese tipo, o -1 si no existe.
+int actuadorIndice(const char *tipo);
 const char *actuadorTipo(size_t indice);
 bool actuadorPrendido(size_t indice);

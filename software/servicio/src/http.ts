@@ -5,10 +5,15 @@
  * - `GET /api/eventos`: Server-Sent Events. Al conectarse manda la instantánea completa y después una
  *   nueva en cada cambio (evento `estado`). El navegador lo lee con `new EventSource('/api/eventos')`
  *   y se reconecta solo si se corta.
+ * - `GET /api/historial?nodo=&desde=&hasta=&tipo=`: lecturas guardadas en MySQL (historial.ts). `desde` y
+ *   `hasta` en ms desde 1970 (por defecto, las últimas 24 h); `tipo` opcional (un solo sensor).
+ *   503 si el servicio no tiene acceso a MySQL.
  * - `POST /api/nodos/{nodoId}/modo` con `{"modo": "automatico" | "manual"}`.
  * - `POST /api/nodos/{nodoId}/actuadores/{tipo}` con `{"encendido": true | false}` (solo en manual).
  * - `POST /api/webhooks/conexiones`: webhook directo de EMQX (ver webhooks.ts). Exige
  *   `Authorization: Bearer {WEBHOOK_TOKEN}` y reenvía el aviso a la web como evento SSE `conexion`.
+ * - `POST /api/nodos/{nodoId}/umbrales` con `{"umbrales": {...}}` (los rangos del bancal) o
+ *   `{"umbrales": null}` (volver a los de por defecto).
  * - Todo lo demás: los archivos del build de la web (`pnpm build` en diseño_pagina_web/web).
  *
  * Los POST manejan actuadores reales, así que solo se aceptan con `Content-Type: application/json` y
@@ -22,6 +27,8 @@ import path from 'node:path'
 import { esActuador, esModo, type Bancales, type Resultado } from './bancal.ts'
 import type { Config } from './config.ts'
 import { aAvisoConexion, type AvisoConexion } from './webhooks.ts'
+import { PULSO_POR_DEFECTO, type Umbrales } from './reglas.ts'
+import { leerPedido, type ConsultarHistorial } from './historial.ts'
 
 const MAX_CUERPO = 1024
 /** El evento de EMQX trae bastantes campos (propiedades de la conexión, etc.). */
@@ -47,9 +54,11 @@ const TIPOS: Record<string, string> = {
 }
 
 export function crearServidorHttp(
-  { http: config, webhook }: Config,
+  { http: config, webhook }: Pick<Config, 'http' | 'webhook'>,
   bancales: Bancales,
   log: (mensaje: string) => void,
+  /** `null` si no hay MySQL: `/api/historial` responde 503. */
+  consultarHistorial: ConsultarHistorial | null = null,
 ) {
   /** Las conexiones SSE abiertas, para mandarles los avisos de conexión del webhook. */
   const clientesSse = new Set<http.ServerResponse>()
@@ -101,6 +110,11 @@ export function crearServidorHttp(
         dejarDeEscuchar()
         clientesSse.delete(respuesta)
       })
+      return
+    }
+
+    if (url.pathname === '/api/historial') {
+      atenderHistorial(url.searchParams, respuesta, consultarHistorial, log)
       return
     }
 
@@ -179,8 +193,30 @@ function tokenValido(encabezado: string | undefined, token: string): boolean {
   return recibido.length === esperado.length && timingSafeEqual(recibido, esperado)
 }
 
+function atenderHistorial(
+  parametros: URLSearchParams,
+  respuesta: http.ServerResponse,
+  consultar: ConsultarHistorial | null,
+  log: (mensaje: string) => void,
+) {
+  const json = (codigo: number, cuerpo: unknown) =>
+    respuesta.writeHead(codigo, { 'Content-Type': TIPOS['.json'], 'Cache-Control': 'no-store' }).end(JSON.stringify(cuerpo))
+
+  if (!consultar) return json(503, { error: 'El historial no está disponible: el servicio no tiene acceso a MySQL' })
+  const leido = leerPedido(parametros, Date.now())
+  if (!leido.ok) return json(400, { error: leido.error })
+
+  consultar(leido.pedido)
+    .then((historial) => json(200, historial))
+    .catch((error: unknown) => {
+      log(`No se pudo leer el historial: ${error instanceof Error ? error.message : error}`)
+      json(503, { error: 'No se pudo leer el historial de MySQL' })
+    })
+}
+
 const RUTA_MODO = /^\/api\/nodos\/([^/]+)\/modo$/
 const RUTA_ACTUADOR = /^\/api\/nodos\/([^/]+)\/actuadores\/([^/]+)$/
+const RUTA_UMBRALES = /^\/api\/nodos\/([^/]+)\/umbrales$/
 
 function atenderPost(
   pedido: http.IncomingMessage,
@@ -196,7 +232,8 @@ function atenderPost(
 
   const modo = RUTA_MODO.exec(ruta)
   const actuador = RUTA_ACTUADOR.exec(ruta)
-  if (!modo && !actuador) return responder(404, 'No existe')
+  const rangos = RUTA_UMBRALES.exec(ruta)
+  if (!modo && !actuador && !rangos) return responder(404, 'No existe')
 
   if (!mismoOrigen(pedido)) {
     log(`POST ${ruta} rechazado: viene de otro origen (${pedido.headers.origin})`)
@@ -207,12 +244,19 @@ function atenderPost(
   }
 
   leerJson(pedido)
-    .then((cuerpo) => {
+    .then(async (cuerpo) => {
       let resultado: Resultado
       if (modo) {
         const valor = (cuerpo as { modo?: unknown } | null)?.modo
         if (!esModo(valor)) return responder(400, 'Se espera {"modo": "automatico" | "manual"}')
-        resultado = bancales.setModo(decodeURIComponent(modo[1]), valor)
+        resultado = await bancales.setModo(decodeURIComponent(modo[1]), valor)
+      } else if (rangos) {
+        const valor = (cuerpo as { umbrales?: unknown } | null)?.umbrales
+        const umbrales = valor === null ? null : aUmbrales(valor)
+        if (umbrales === undefined) {
+          return responder(400, 'Se espera {"umbrales": null} o los cuatro umbrales numéricos y luzHorario (null o {"desde", "hasta"})')
+        }
+        resultado = await bancales.setUmbrales(decodeURIComponent(rangos[1]), umbrales)
       } else {
         const tipo = decodeURIComponent(actuador![2])
         if (!esActuador(tipo)) return responder(404, `No existe el actuador ${tipo}`)
@@ -224,6 +268,29 @@ function atenderPost(
       else responder(resultado.codigo, resultado.error)
     })
     .catch((error: Error) => responder(400, error.message))
+}
+
+/**
+ * Arma los umbrales del cuerpo de un pedido, tomando solo los campos conocidos. Devuelve `undefined` si
+ * falta alguno o tiene otro tipo; los valores (márgenes, límites, formato de hora) los revisa bancal.ts.
+ */
+function aUmbrales(valor: unknown): Umbrales | undefined {
+  if (typeof valor !== 'object' || valor === null) return undefined
+  const v = valor as Record<string, unknown>
+  const numeros = ['riegoEncenderDebajoDe', 'riegoApagarDesde', 'ventiladorEncenderDesde', 'ventiladorApagarDebajoDe'] as const
+  if (!numeros.every((clave) => typeof v[clave] === 'number')) return undefined
+  const horario = v.luzHorario as { desde?: unknown; hasta?: unknown } | null | undefined
+  if (horario !== null && (typeof horario?.desde !== 'string' || typeof horario?.hasta !== 'string')) return undefined
+  return {
+    riegoEncenderDebajoDe: v.riegoEncenderDebajoDe as number,
+    riegoApagarDesde: v.riegoApagarDesde as number,
+    ventiladorEncenderDesde: v.ventiladorEncenderDesde as number,
+    ventiladorApagarDebajoDe: v.ventiladorApagarDebajoDe as number,
+    luzHorario: horario === null ? null : { desde: horario.desde as string, hasta: horario.hasta as string },
+    // Opcionales en el pedido; los valores los revisa validarUmbrales
+    riegoPulsoSegundos: typeof v.riegoPulsoSegundos === 'number' ? v.riegoPulsoSegundos : PULSO_POR_DEFECTO.riegoPulsoSegundos,
+    riegoEsperaLecturas: typeof v.riegoEsperaLecturas === 'number' ? v.riegoEsperaLecturas : PULSO_POR_DEFECTO.riegoEsperaLecturas,
+  }
 }
 
 /**

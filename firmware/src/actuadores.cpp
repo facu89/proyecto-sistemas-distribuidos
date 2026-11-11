@@ -59,6 +59,13 @@ int actuadoresAplicar(const char *tipo, const char *valor) {
 
 size_t actuadoresCantidad() { return CANTIDAD; }
 
+int actuadorIndice(const char *tipo) {
+  for (size_t i = 0; i < CANTIDAD; i++) {
+    if (strcmp(actuadores[i].tipo, tipo) == 0) return static_cast<int>(i);
+  }
+  return -1;
+}
+
 const char *actuadorTipo(size_t indice) { return actuadores[indice].tipo; }
 
 bool actuadorPrendido(size_t indice) { return actuadores[indice].prendido; }

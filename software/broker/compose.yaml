@@ -2,7 +2,7 @@
 #   cp -r secrets.example secrets   y completar secrets/.env
 #
 # Con "docker compose up -d" (o "podman compose up -d") se levanta todo, en este orden:
-#   certs -> mysql -> emqx -> servicio
+#   certs -> mysql -> mysql-actualizar -> emqx -> servicio
 # No hace falta instalar nada más que Docker o Podman: los certificados y la web se generan en contenedores.
 
 services:
@@ -21,11 +21,14 @@ services:
     container_name: emqx
     restart: unless-stopped
     env_file: secrets/.env
-    # Solo MQTT por TLS (8883) y el panel. Los listeners sin cifrar (1883 TCP, 8083 WebSocket) y el
-    # WebSocket TLS (8084) están apagados en config/emqx.conf, así que tampoco se usan desde adentro.
     ports:
-      - "8883:8883"   # MQTT sobre TLS
-      - "18083:18083" # Panel de EMQX
+      # MQTT con TLS: abierto a la red, porque el ESP32 se conecta a la IP de esta máquina
+      - "8883:8883"
+      # Panel de EMQX: solo desde esta máquina (http://localhost:18083). Es HTTP sin cifrar: abierto a
+      # la red, la clave del panel viajaría en texto plano.
+      - "127.0.0.1:18083:18083"
+      # 1883 (MQTT sin cifrar) y 8083 (WebSocket) no se publican y están apagados en config/emqx.conf:
+      # todos los clientes (ESP32 y servicio) usan TLS.
     volumes:
       - emqx-data:/opt/emqx/data
       # ",z": en sistemas con SELinux (Fedora + Podman) etiqueta los archivos para que el
@@ -51,28 +54,64 @@ services:
       dockerfile: software/servicio/Dockerfile
     container_name: servicio
     restart: unless-stopped
-    # Usuario y clave MQTT del servicio (MQTT_SERVICIO_USER y MQTT_SERVICIO_PASSWORD)
-    env_file: secrets/.env
+    # Solo sus claves (usuario MQTT y usuario de MySQL), no todo secrets/.env: es el contenedor que atiende
+    # la web, y si alguien lograra ejecutar código ahí no vería las claves de root, admin ni EMQX.
+    env_file: secrets/servicio.env
     environment:
       # Dentro de la red de compose el broker se llama "emqx" (el certificado incluye ese nombre)
       MQTT_URL: mqtts://emqx:8883
       MQTT_CA: /certs/ca.pem
+      # TLS mutuo: certificado de cliente del servicio (lo genera el contenedor "certs")
+      MQTT_CERT: /certs/clientes/servicio.pem
+      MQTT_KEY: /certs/clientes/servicio.key
       # Escucha en todas las interfaces del contenedor; el "ports" de abajo decide quién llega
       HTTP_HOST: 0.0.0.0
+      # MySQL: lee el historial (GET /api/historial) y guarda el modo y los rangos de cada bancal, con el
+      # usuario "servicio" (solo esas dos tablas). La clave es MYSQL_SERVICIO_PASSWORD (secrets/servicio.env).
+      MYSQL_HOST: mysql
     ports:
-      - "8080:8080"
+      # Solo desde esta máquina (http://localhost:8080): la web no tiene login y en manual maneja los
+      # actuadores, así que abierta a la red cualquiera de la WiFi podría hacerlo. Para verla desde el
+      # celular en la misma red, cambiar a "8080:8080" mientras se prueba (o usar el servidor).
+      - "127.0.0.1:8080:8080"
     volumes:
       - ./security/certs:/certs:ro,z
     depends_on:
       emqx:
+        condition: service_healthy
+      mysql-actualizar:
+        condition: service_completed_successfully
+
+  # Corre en cada "up" con MySQL listo y termina: pone al día la base sin borrar nada (tablas y
+  # permisos nuevos de init.sql, claves de los usuarios y el usuario "servicio" de MySQL). Ver mysql/actualizar.sh.
+  # Usa la misma imagen de MySQL solo por el cliente "mysql": no levanta otra base.
+  mysql-actualizar:
+    image: mysql:8.4
+    container_name: mysql-actualizar
+    restart: "no"
+    # Los dos: crea los usuarios de .env y los del servicio (servicio.env) con sus claves
+    env_file:
+      - secrets/.env
+      - secrets/servicio.env
+    environment:
+      MYSQL_DATABASE: mqtt
+      MYSQL_HOST: mysql
+    entrypoint: ["bash", "/actualizar/actualizar.sh"]
+    volumes:
+      - ./mysql:/actualizar:ro,z
+    depends_on:
+      mysql:
         condition: service_healthy
 
   mysql:
     image: mysql:8.4
     container_name: mysql
     restart: unless-stopped
-    # MYSQL_ROOT_PASSWORD y MYSQL_PASSWORD vienen de secrets/.env
-    env_file: secrets/.env
+    # MYSQL_ROOT_PASSWORD y MYSQL_PASSWORD vienen de secrets/.env; servicio.env, para crear el usuario
+    # MQTT del servicio la primera vez (02-init-users.sh)
+    env_file:
+      - secrets/.env
+      - secrets/servicio.env
     environment:
       MYSQL_DATABASE: mqtt
       MYSQL_USER: emqx

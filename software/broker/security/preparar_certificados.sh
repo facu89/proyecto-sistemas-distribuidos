@@ -1,17 +1,30 @@
 #!/usr/bin/env bash
 # Lo corre el contenedor "certs" de compose.yaml cada vez que se hace "compose up", antes de arrancar EMQX.
-# Deja listo el certificado TLS del broker y solo lo regenera (con generar_certificados.sh) si hace falta:
+# Deja listos, en este orden:
+#   1. La CA (ca.pem): si le queda menos de un año, la renueva por 10 años con la MISMA clave (ca.key). Lo ya
+#      firmado sigue valiendo y el ESP32 grabado también, porque verifica las firmas con esa clave.
+#   2. El certificado del broker (broker.pem).
+#   3. Los certificados de cliente para TLS mutuo (certs/clientes/): el del servicio y el de cada ESP32 de
+#      NODOS_TLS (secrets/.env; por defecto, MQTT_ESP_USER). Ver generar_cliente.sh.
+#
+# El certificado del broker se regenera (con generar_certificados.sh) solo si hace falta:
 #   - no existe, o falta su clave;
 #   - no lo firmó la CA actual (ca.pem);
 #   - no coincide con su clave privada (broker.key);
 #   - vence en menos de 30 días;
-#   - no incluye alguna de las IPs de BROKER_IP (secrets/.env).
+#   - no incluye alguna de las IPs de BROKER_IP o de los nombres de BROKER_DNS (secrets/.env).
 # Si está todo bien, no toca nada.
+#
+# El del servicio dura 1 año: se renueva solo en un "compose up" cuando le quedan menos de 30 días. El de cada
+# ESP32 dura 10 años, porque renovarlo es volver a grabar la placa.
 #
 # BROKER_IP es la IP de la máquina del broker en la red del ESP32 (la misma que MQTT_HOST en
 # firmware/include/config.h). Desde adentro del contenedor no se puede averiguar, por eso va en .env.
 # Se pueden poner varias separadas por coma. Si está vacía, el certificado sirve solo para el servicio
 # (que se conecta por el nombre "emqx") y para localhost.
+#
+# BROKER_DNS son nombres con los que el ESP32 llega al broker (por ejemplo bancal.taile538b8.ts.net en el
+# servidor, ver README.md "Servidor"). También separados por coma; vacía si se usa solo por IP.
 
 set -e
 
@@ -19,7 +32,12 @@ AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 C="$AQUI/certs"
 cd "$C"
 
-read -r -a IPS <<< "$(echo "${BROKER_IP:-}" | tr ',;' '  ')"
+# "${var%%#*}" descarta un comentario al final de la línea (BROKER_IP=1.2.3.4 # la IP de casa):
+# Docker Compose lo ignora solo, pero podman-compose lo pasa como parte del valor.
+BROKER_IP="${BROKER_IP:-}"
+BROKER_DNS="${BROKER_DNS:-}"
+read -r -a IPS <<< "$(echo "${BROKER_IP%%#*}" | tr ',;' '  ')"
+read -r -a NOMBRES <<< "$(echo "${BROKER_DNS%%#*}" | tr ',;' '  ')"
 
 clave_publica_cert() { openssl x509 -in "$1" -noout -pubkey 2>/dev/null; }
 clave_publica_key()  { openssl pkey -in "$1" -pubout 2>/dev/null; }
@@ -30,6 +48,16 @@ clave_publica_key()  { openssl pkey -in "$1" -pubout 2>/dev/null; }
 # esa clave; así no hace falta volver a grabarlo.
 if [ ! -f ca.pem ] && [ -f ca.key ]; then
     echo "==> Falta ca.pem pero está ca.key: se rearma ca.pem con la misma clave (el ESP32 sigue sirviendo)"
+    openssl req -x509 -new -key ca.key -out ca.pem -days 3650 -subj "/CN=PlantasCA"
+    cp ca.pem cacert.pem
+fi
+
+# Renovación de la CA: mismo nombre y MISMA clave, fechas nuevas. Los certificados que firmó la anterior
+# siguen validando (identifican a la CA por su clave), y el ESP32 no necesita volver a grabarse.
+if [ -f ca.pem ] && [ -f ca.key ] && [ "$(clave_publica_cert ca.pem)" = "$(clave_publica_key ca.key)" ] \
+    && ! openssl x509 -in ca.pem -noout -checkend $((365 * 24 * 3600)) >/dev/null; then
+    echo "==> La CA vence el $(openssl x509 -in ca.pem -noout -enddate | cut -d= -f2): se renueva por 10 años con la misma clave"
+    cp ca.pem "ca.pem.vencia-$(date +%Y%m%d)"
     openssl req -x509 -new -key ca.key -out ca.pem -days 3650 -subj "/CN=PlantasCA"
     cp ca.pem cacert.pem
 fi
@@ -49,15 +77,17 @@ else
     for ip in "${IPS[@]}"; do
         grep -qE "IP Address:${ip//./\\.}(,|$)" <<< "$san" || faltan+=("$ip")
     done
+    for nombre in "${NOMBRES[@]}"; do
+        grep -qE "DNS:${nombre//./\\.}(,|$)" <<< "$san" || faltan+=("$nombre")
+    done
     if [ "${#faltan[@]}" -gt 0 ]; then
         motivo="no incluye ${faltan[*]}"
     fi
 fi
 
 if [ -z "$motivo" ]; then
-    echo "==> El certificado del broker está bien (IPs: ${IPS[*]:-ninguna}). No se cambia nada."
-    exit 0
-fi
+    echo "==> El certificado del broker está bien (IPs: ${IPS[*]:-ninguna}; nombres: ${NOMBRES[*]:-ninguno}). No se cambia nada."
+else
 echo "==> El certificado del broker $motivo: se regenera"
 
 # Para firmar hace falta la clave de la CA. Si ca.pem y ca.key son de CAs distintas (pasa cuando alguien
@@ -74,8 +104,17 @@ if [ ! -f ca.key ]; then
     echo "    El ESP32 tiene que recompilarse y grabarse para que confíe en ella."
 fi
 
-"$AQUI/generar_certificados.sh" "${IPS[@]}"
+"$AQUI/generar_certificados.sh" "${IPS[@]}" "${NOMBRES[@]}"
 
 # EMQX corre con su propio usuario y tiene que poder leer la clave (en Linux el archivo queda del root
 # del contenedor). ca.key no la lee nadie más que este contenedor, así que esa se deja privada.
 chmod 644 broker.key key.pem
+fi
+
+# Certificados de cliente (TLS mutuo): el servicio y cada ESP32 de NODOS_TLS (por defecto, MQTT_ESP_USER)
+NODOS_TLS="${NODOS_TLS:-${MQTT_ESP_USER:-}}"
+read -r -a NODOS <<< "$(echo "${NODOS_TLS%%#*}" | tr ',;' '  ')"
+"$AQUI/generar_cliente.sh" servicio 365
+for nodo in "${NODOS[@]}"; do
+    "$AQUI/generar_cliente.sh" "$nodo" 3650
+done

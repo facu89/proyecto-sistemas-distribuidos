@@ -1,5 +1,7 @@
+import fs from 'node:fs'
 import path from 'node:path'
-import type { Umbrales } from './reglas.ts'
+import type { ConfigMysql } from './mysql.ts'
+import { validarUmbrales, type HorarioLuz, type Umbrales } from './reglas.ts'
 
 // Las rutas relativas se resuelven desde la carpeta del servicio (software/servicio), no desde donde se
 // lanzó el proceso, así funciona igual con `pnpm start` que con `node software/servicio/src/main.ts`.
@@ -9,7 +11,7 @@ function texto(nombre: string, porDefecto?: string): string {
   const valor = process.env[nombre]?.trim()
   if (valor) return valor
   if (porDefecto !== undefined) return porDefecto
-  throw new Error(`Falta la variable ${nombre} (debería venir de software/broker/secrets/.env)`)
+  throw new Error(`Falta la variable ${nombre} (debería venir de software/broker/secrets/servicio.env)`)
 }
 
 function numero(nombre: string, porDefecto: number): number {
@@ -20,6 +22,18 @@ function numero(nombre: string, porDefecto: number): number {
   return valor
 }
 
+/** "18:00-23:00" -> { desde: '18:00', hasta: '23:00' }; vacío -> null (la luz depende solo de si está oscuro). */
+function horario(nombre: string): HorarioLuz | null {
+  const crudo = process.env[nombre]?.trim()
+  if (!crudo) return null
+  const [desde, hasta] = crudo.split('-').map((h) => h.trim())
+  if (!desde || !hasta) throw new Error(`${nombre}="${crudo}" tiene que ser "HH:MM-HH:MM"`)
+  return { desde, hasta }
+}
+
+/** La ruta si el archivo existe; si no, `null`. */
+const opcional = (archivo: string) => (fs.existsSync(archivo) ? archivo : null)
+
 const ruta = (nombre: string, porDefecto: string) => path.resolve(CARPETA, texto(nombre, porDefecto))
 
 export function leerConfig() {
@@ -28,19 +42,38 @@ export function leerConfig() {
     riegoApagarDesde: numero('RIEGO_APAGAR_DESDE', 70),
     ventiladorEncenderDesde: numero('VENTILADOR_ENCENDER_DESDE', 28),
     ventiladorApagarDebajoDe: numero('VENTILADOR_APAGAR_DEBAJO_DE', 26),
+    luzHorario: horario('LUZ_HORARIO'),
+    riegoPulsoSegundos: numero('RIEGO_PULSO_SEGUNDOS', 5),
+    riegoEsperaLecturas: numero('RIEGO_ESPERA_LECTURAS', 2),
   }
-  // Sin margen entre encender y apagar, el actuador prendería y apagaría con cada lectura.
-  if (umbrales.riegoEncenderDebajoDe >= umbrales.riegoApagarDesde) {
-    throw new Error('RIEGO_ENCENDER_DEBAJO_DE tiene que ser menor que RIEGO_APAGAR_DESDE')
-  }
-  if (umbrales.ventiladorApagarDebajoDe > umbrales.ventiladorEncenderDesde) {
-    throw new Error('VENTILADOR_APAGAR_DEBAJO_DE no puede ser mayor que VENTILADOR_ENCENDER_DESDE')
-  }
+  // Los mismos controles que cuando se cambian desde la web (márgenes mínimos, límites, formato de hora)
+  const problema = validarUmbrales(umbrales)
+  if (problema) throw new Error(`Valores por defecto de las reglas: ${problema}`)
+
+  // MySQL: historial y configuración de cada bancal. Solo si hay a dónde conectarse: en compose
+  // MYSQL_HOST=mysql; con `pnpm start` suelto no está, la web avisa que el historial no está disponible
+  // y el modo y los rangos que se cambien no sobreviven a un reinicio.
+  const mysqlHost = process.env.MYSQL_HOST?.trim()
+  const claveMysql = process.env.MYSQL_SERVICIO_PASSWORD?.trim()
+  const mysql: ConfigMysql | null =
+    mysqlHost && claveMysql
+      ? {
+          host: mysqlHost,
+          puerto: numero('MYSQL_PUERTO', 3306),
+          usuario: texto('MYSQL_SERVICIO_USER', 'servicio'),
+          clave: claveMysql,
+          base: texto('MYSQL_DATABASE', 'mqtt'),
+        }
+      : null
 
   return {
     mqtt: {
       url: texto('MQTT_URL', 'mqtts://localhost:8883'),
       ca: ruta('MQTT_CA', '../broker/security/certs/ca.pem'),
+      // Certificado y clave de cliente (TLS mutuo). Si no están, se conecta sin certificado: sirve con un
+      // broker que no lo exige, y si lo exige, el error lo dice.
+      cert: opcional(ruta('MQTT_CERT', '../broker/security/certs/clientes/servicio.pem')),
+      claveTls: opcional(ruta('MQTT_KEY', '../broker/security/certs/clientes/servicio.key')),
       usuario: texto('MQTT_SERVICIO_USER'),
       clave: texto('MQTT_SERVICIO_PASSWORD'),
     },
@@ -57,6 +90,9 @@ export function leerConfig() {
       token: texto('WEBHOOK_TOKEN', ''),
     },
     umbrales,
+    mysql,
+    // El horario de la luz es en hora local del bancal; el servidor corre en UTC
+    zonaHoraria: texto('ZONA_HORARIA', 'America/Argentina/Buenos_Aires'),
   }
 }
 

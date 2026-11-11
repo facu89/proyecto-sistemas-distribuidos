@@ -1,0 +1,27 @@
+# Cambios para el servidor (alumno16), encima de compose.yaml. Lo usa desplegar.sh:
+#   docker compose -f compose.yaml -f compose.servidor.yaml up -d --build
+#
+# En el servidor nada escucha hacia afuera: todos los puertos quedan en 127.0.0.1 y Tailscale, que corre
+# en la misma máquina, es lo único que los alcanza (ver README.md, "Servidor"):
+#   - tailscale funnel :443  -> 127.0.0.1:8884    MQTT con TLS, público, para el ESP32
+#   - tailscale serve  :8443 -> 127.0.0.1:8090    la web, solo para quien esté en la red de Tailscale
+# El ESP32 va por el 443 porque la WiFi de la facultad ("Alumnos 2G") solo deja salir por 80 y 443.
+#
+# Ojo: los puertos locales NO son los de siempre (8883, 18083). sd-2026 reenvía sus puertos 183NN, 188NN y
+# 181NN a 1883, 8883 y 18083 de cada nodo y esos reenvíos se conectan desde adentro de la máquina, así que
+# llegan aunque el puerto esté atado a 127.0.0.1. Con otros números, esos reenvíos no encuentran nada y
+# toda la cátedra queda afuera del broker y del panel.
+#
+# "!override" reemplaza la lista de compose.yaml en vez de sumarse (Docker Compose 2.24 o más nuevo).
+
+services:
+  emqx:
+    ports: !override
+      - "127.0.0.1:8884:8883"     # MQTT con TLS (el ESP32 llega por Funnel)
+      - "127.0.0.1:18084:18083"   # panel de EMQX: por túnel SSH (ssh -L 18083:localhost:18084 ...)
+      # 1883 (MQTT sin cifrar) y 8083 (WebSocket) no se publican
+
+  servicio:
+    ports: !override
+      # El 8080 de la máquina lo usa el cebador de la clase 14
+      - "127.0.0.1:8090:8080"
