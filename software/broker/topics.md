@@ -86,7 +86,7 @@ Ejemplo: `bancal1esp1/sensor/humedad`, con payload `41.2`.
 Ejemplo: `bancal1esp1/presencia`, con payload `online` u `offline`.
 
 - **Publica:** el ESP32 publica `online` al conectarse. Al conectarse, también deja registrado en el broker un **Last Will** (`offline`): si el ESP32 se corta sin avisar (se apaga, pierde WiFi), el broker lo detecta por el keepalive y publica `offline` en su nombre.
-- **Keepalive de 10 s:** el ESP32 manda un PING cada ~5 s (la mitad del keepalive). Si el broker no recibe nada durante 1,5 × 10 = 15 s, da al ESP32 por muerto y publica el Last Will. Por cómo el broker revisa los plazos, en la práctica el `offline` puede tardar algunos segundos más.
+- **Keepalive de 20 s:** el ESP32 manda un PING cada ~10 s (la mitad del keepalive). Si el broker no recibe nada durante 1,5 × 20 = 30 s, da al ESP32 por muerto y publica el Last Will. Por cómo el broker revisa los plazos, en la práctica el `offline` puede tardar algunos segundos más.
 - **Se suscriben:** el usuario y el servicio, con `+/presencia`.
 - **QoS 1:** es importante saber si el nodo está activo, así que no se puede perder. Si el mensaje se repite (por ejemplo, `offline` dos veces) no pasa nada.
 - **Retain sí:** quien se conecta después ve enseguida si cada nodo está activo o no.

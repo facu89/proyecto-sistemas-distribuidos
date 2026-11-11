@@ -28,7 +28,9 @@ extern const char claveClienteInicio[] asm("_binary_certs_cliente_key_start");
 
 namespace {
 
-constexpr int KEEPALIVE_S = 10;  // PING cada ~5 s (la mitad); sin noticias por 1,5 × 10 = 15 s, el broker publica el Last Will
+// PING cada ~10 s (la mitad); sin noticias por 1,5 × 20 = 30 s, el broker publica el Last Will. Con 10 s, una
+// pausa corta del WiFi de la facultad alcanzaba para cortar la sesión y había que rehacer el saludo TLS.
+constexpr int KEEPALIVE_S = 20;
 constexpr int RECONEXION_MS = 5000;
 constexpr int QOS_LECTURAS = 0;
 constexpr int QOS_PRESENCIA = 1;
@@ -175,6 +177,12 @@ void informarCambios() {
       Serial.println("WiFi desconectado");
       break;
     case EstadoRed::SinBroker:
+      if (anterior == EstadoRed::SinWifi) {
+        // Recién hay WiFi: todavía no falló nada, falta el saludo TLS (unos segundos)
+        Serial.printf("[%lu s] Conectando al broker %s:%lu...\n", millis() / 1000, MQTT_HOST,
+                      (unsigned long)MQTT_PORT);
+        break;
+      }
       Serial.printf("[%lu s] Sin conexión con el broker %s:%lu\n", millis() / 1000, MQTT_HOST,
                     (unsigned long)MQTT_PORT);
       imprimirMotivo();
