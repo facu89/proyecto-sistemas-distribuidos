@@ -13,27 +13,77 @@ ESP32 ──MQTT/TLS──► EMQX ◄──MQTT/TLS──► Servicio ──HTT
 | `firmware/` | ESP32 (Heltec WiFi LoRa 32 V3, PlatformIO): sensores, pantalla y MQTT por TLS | `firmware/include/config.example.h` |
 | `software/broker/` | EMQX + MySQL (usuarios y ACL), certificados TLS | [README](software/broker/README.md), [tópicos](software/broker/topics.md) |
 | `software/servicio/` | Reglas de los actuadores y servidor de la web | [README](software/servicio/README.md) |
+| `software/simulador/` | ESP32 simulado (`bancal2esp1`): un segundo bancal que corre en la computadora, con panel web | [README](software/simulador/README.md) |
 | `diseño_pagina_web/` | Modelo 3D (Blender) y la web (Vite + React + Three.js) | [PLAN](diseño_pagina_web/PLAN.md), [README de la web](diseño_pagina_web/web/README.md) |
 
 ## Puesta en marcha
 
+Los comandos son de bash (en Windows, Git Bash) y se corren desde la raíz del repo. Las claves y las claves privadas no están en el repo: se generan o se completan en archivos que git ignora (`secrets/`, `security/certs/`, `config.h`, `.env`).
+
+### 1. Lado servidor: broker, MySQL, servicio y web
+
+Solo hace falta Docker (o Podman). Los certificados, la base y la web se arman en contenedores.
+
 ```bash
-# 1. Broker (la primera vez: cp -r secrets.example secrets y completar secrets/.env)
-software/broker/levantar.sh          # revisa el certificado TLS y levanta EMQX + MySQL (Podman o Docker)
-
-# 2. Web: compilarla una vez (y cada vez que se modifique)
-cd diseño_pagina_web/web && pnpm install && pnpm build
-
-# 3. Servicio: reglas + web en http://localhost:8080
-cd software/servicio && pnpm install && pnpm start
-
-# 4. ESP32: en firmware/include/config.h, MQTT_HOST = la IP que muestra levantar.sh y MQTT_PORT = 8883.
-#    Compilar y grabar con PlatformIO (la CA del broker se embebe sola).
+cd software/broker
+cp -r secrets.example secrets
+# Completar secrets/.env y secrets/servicio.env: claves largas en cada línea (openssl rand -hex 24) y
+# BROKER_IP = la IP de esta máquina en la red de los ESP32 (va en el certificado TLS del broker).
+docker compose up -d        # la primera vez tarda unos minutos: baja imágenes y compila la web
+docker compose ps           # emqx, mysql y servicio "Up"; certs y mysql-actualizar "Exited (0)"
 ```
 
-**En el servidor de la cátedra** (`alumno16`): con los cambios commiteados, `software/broker/desplegar.sh` sube el commit actual por SSH y levanta todo con Docker Compose. La primera vez y los detalles están en el [README del broker, sección "Servidor"](software/broker/README.md#servidor).
+Queda:
+- **Web:** http://localhost:8080
+- **MQTT con TLS mutuo:** puerto 8883
+- **Panel de EMQX:** http://localhost:18083
 
-Si la máquina del broker cambia de red o de IP, hay que volver a correr `levantar.sh` y actualizar `MQTT_HOST` en el ESP32 (ver [README del broker](software/broker/README.md#si-cambia-la-red-o-la-ip-de-la-máquina)).
+Para apagar: `docker compose down` (sin `-v`, así no se borran la base ni el historial). Más detalles, en el [README del broker](software/broker/README.md#cómo-se-levanta).
+
+**En el servidor de la cátedra** (`alumno16`), desde tu máquina y con los cambios commiteados: `software/broker/desplegar.sh`. Sube el commit actual por SSH y lo levanta con el mismo compose. La primera vez y los detalles están en la [sección "Servidor"](software/broker/README.md#servidor).
+
+### 2. Clientes
+
+Cada cliente MQTT necesita tres cosas: un usuario con su clave en MySQL, un certificado de cliente con ese usuario como CN y el client ID igual al usuario. El `docker compose up` crea los de `bancal1esp1` (la placa) y `bancal2esp1` (el simulador) a partir de `secrets/.env`.
+
+**ESP32 real (`bancal1esp1`)**, con PlatformIO:
+
+```bash
+cd firmware
+cp include/config.example.h include/config.h
+# En config.h: WIFI_SSID y WIFI_PASS; MQTT_HOST = BROKER_IP y MQTT_PORT = 8883 (en el servidor:
+# "bancal.taile538b8.ts.net" y 443); NODO_ID = "bancal1esp1"; MQTT_PASS = MQTT_ESP_PASSWORD de secrets/.env
+pio run -t upload           # embebe la CA y el certificado de cliente del nodo (de software/broker/security/certs)
+pio device monitor          # opcional: ver el log por el puerto serie
+```
+
+**ESP32 simulado (`bancal2esp1`)**: un segundo bancal que corre en la computadora, sin placa. Se conecta al broker igual que el ESP32 (TLS mutuo, mismos tópicos y mismas reglas) y aparece en la web como otro bancal. Necesita Node 22.18 o más nuevo y pnpm.
+
+```bash
+cd software/simulador
+cp .env.example .env
+# En .env: MQTT_PASSWORD = MQTT_SIMULADOR_PASSWORD de secrets/.env. MQTT_URL apunta al servidor por defecto;
+# para el broker local: MQTT_URL=mqtts://localhost:8883
+pnpm install
+pnpm start                  # panel del simulador en http://localhost:8091
+```
+
+Desde el panel se puede fijar el valor de un sensor y desconectarlo de golpe (el broker publica el Last Will). También se puede probar la conexión sin certificado o sin contraseña, para ver que el broker la rechaza. Ver el [README del simulador](software/simulador/README.md).
+
+**Cliente de prueba (`cliente_web`, solo lectura)**, con `mosquitto_sub`, para mirar los mensajes:
+
+```bash
+software/broker/security/generar_cliente.sh cliente_web     # su certificado (necesita openssl)
+cd software/broker/security/certs
+mosquitto_sub -h localhost -p 8883 --cafile ca.pem \
+  --cert clientes/cliente_web.pem --key clientes/cliente_web.key \
+  -i cliente_web -u cliente_web -P '<MQTT_WEB_PASSWORD de secrets/.env>' \
+  -t '+/sensor/+' -t '+/presencia' -t '+/actuador/+/estado' -t 'alertas/#' -v
+```
+
+Si se usa otro client ID, otro usuario o se saca el certificado, el broker rechaza la conexión. Si un cliente se suscribe o publica en un tópico que la ACL no le permite, EMQX lo rechaza. Para el servidor: `-h bancal.taile538b8.ts.net -p 443`, con la clave de `cliente_web` del servidor.
+
+Si la máquina del broker cambia de red o de IP, hay que cambiar `BROKER_IP`, volver a hacer `docker compose up -d` (o correr `software/broker/levantar.sh`, que detecta las IPs solo) y actualizar `MQTT_HOST` en el ESP32 (ver el [README del broker](software/broker/README.md#si-cambia-la-red-o-la-ip-de-la-máquina)).
 
 ## Reglas de los actuadores
 

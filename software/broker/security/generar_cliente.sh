@@ -8,6 +8,9 @@
 # toca. Lo corre preparar_certificados.sh en cada "compose up"; también se puede correr a mano.
 
 set -e
+# Git Bash (Windows) convierte "/CN=..." en una ruta de Windows y openssl falla: así no toca esos argumentos
+# (las demás rutas, como las de mktemp, sí se tienen que convertir). En Linux no hace nada.
+export MSYS2_ARG_CONV_EXCL="/CN="
 
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 C="$AQUI/certs"
