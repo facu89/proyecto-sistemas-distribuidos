@@ -51,7 +51,8 @@ Las aplica el servicio ([`software/servicio/src/reglas.ts`](software/servicio/sr
 - [ ] Resolver la IP del broker por nombre (mDNS, por ejemplo `broker.local`) en vez de fijarla en `config.h`. Así no habría que volver a grabar el ESP32 al cambiar de red. El certificado tendría que incluir ese nombre.
 
 - [x] **Las reglas corren en el ESP32** (`firmware/src/reglas.c`): sigue funcionando aunque se caiga el servicio, el broker o internet. El servicio le manda modo y rangos en `{nodoId}/config` (retenido), que el ESP32 guarda en NVS. En manual, si pierde el servicio, pasa a automático en el acto. Ver [topics.md](software/broker/topics.md), sección 6.
-- [ ] **Probar las reglas del ESP32 con la placa:** el firmware compila y la lógica tiene tests (`firmware/test/`), y el lado del servicio se probó con un ESP32 simulado, pero falta grabarlo y probarlo con los relés: rangos nuevos, horario de la luz (NTP) y el paso a automático al apagar el servicio. Ojo: hasta grabarlo, el ESP32 tiene el firmware anterior y el servicio sigue decidiendo por él.
+- [x] **Reglas del ESP32 probadas con la placa** contra el servidor: orden manual, paso a automático al reiniciar el servicio (apagó la luz porque había luz) y vuelta a manual, y rangos nuevos del cooler aplicados al instante. Faltan el horario de la luz (de noche) y el riego por pulsos con agua.
+- [ ] **Calibrar la sonda de suelo:** `SUELO_SECO = 420` (medido), pero mojada lee ~2810 estable y `SUELO_MOJADO` sigue en 2100, así que todo lo que pase de 2100 marca 100 %. Medir la sonda en agua y poner ese valor.
 - [x] **Riego por pulsos:** 5 s de bomba y 2 lecturas (≈10 s) de espera, en automático y en manual. Se cambian desde la web (editor del riego) sin regrabar la placa.
 - [ ] **Probar el caudal** para ajustar el pulso (¿5 s es la cantidad de agua adecuada?) y la espera (¿10 s alcanzan para que el agua llegue al sensor, o en automático riega de más?).
 
