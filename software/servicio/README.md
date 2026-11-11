@@ -92,6 +92,7 @@ Detalles:
 | `GET /api/eventos` | SSE: el mismo JSON al conectarse y otra vez en cada cambio (evento `estado`) |
 | `POST /api/nodos/{nodoId}/modo` | Cambia el modo. Cuerpo: `{"modo": "automatico"}` o `{"modo": "manual"}` |
 | `POST /api/nodos/{nodoId}/actuadores/{tipo}` | Orden manual (`tipo` = `luz`, `cooler` o `riego`). Cuerpo: `{"encendido": true}` o `false`. Con el nodo en automático responde 409 |
+| `POST /api/webhooks/conexiones` | **Webhook directo de EMQX** (regla `avisar_conexiones`): el evento `client.connected` / `client.disconnected` de cualquier cliente. Exige `Authorization: Bearer {WEBHOOK_TOKEN}` (si no, 401; sin `WEBHOOK_TOKEN`, 503). Se reenvía a la web como evento SSE `conexion` y la web lo muestra 5 s |
 | Cualquier otra | Los archivos de `diseño_pagina_web/web/dist/` |
 
 Los `POST` responden 204 si salió bien, o un JSON `{"error": "..."}` con 400, 403, 404, 409 o 415.

@@ -6,6 +6,7 @@ import { estadoParaEscena, useBancal } from './bancal'
 import { Cargando } from './Cargando'
 import { DEPURACION } from './depuracion'
 import { Escena } from './escena/Escena'
+import { AvisosConexion } from './panel/AvisosConexion'
 import { PanelActuadores } from './panel/PanelActuadores'
 import { PanelLecturas } from './panel/PanelLecturas'
 import { SelectorBancal } from './panel/SelectorBancal'
@@ -50,6 +51,7 @@ export default function App() {
         disponible={bancal.conexion === 'conectada' && bancal.broker}
       />
       <SelectorBancal lista={bancal.lista} nodoId={bancal.nodoId} onElegir={bancal.elegirNodo} />
+      <AvisosConexion avisos={bancal.avisos} />
     </main>
   )
 }

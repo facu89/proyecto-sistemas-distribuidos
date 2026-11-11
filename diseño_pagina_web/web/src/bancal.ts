@@ -5,13 +5,20 @@
  * - En producción el servicio sirve esta misma web, así que `/api` es el mismo origen.
  * - Con `pnpm dev`, Vite reenvía `/api` al servicio (ver `server.proxy` en vite.config.ts).
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { EstadoActuador, Instantanea, Nodo } from '../../../software/servicio/src/bancal.ts'
+import type { AvisoConexion } from '../../../software/servicio/src/webhooks.ts'
 import type { Actuador, EstadoActuadores } from './estado'
 
 // Los tipos vienen del servicio (import type: se borran al compilar, no se trae código de ahí).
 // Así la forma de los datos se define en un solo lugar.
-export type { EstadoActuador, Instantanea, Nodo }
+export type { AvisoConexion, EstadoActuador, Instantanea, Nodo }
+
+/** Un aviso de conexión en pantalla. `id` distingue dos avisos iguales seguidos. */
+export type Aviso = AvisoConexion & { id: number }
+
+/** Cuánto queda en pantalla cada aviso de conexión o desconexión. */
+const DURACION_AVISO_MS = 5000
 
 const URL_EVENTOS = '/api/eventos'
 /** Si el servicio no responde (está apagado), EventSource se rinde: se reintenta a mano cada tanto. */
@@ -49,16 +56,29 @@ export function useBancal() {
   const [instantanea, setInstantanea] = useState<Instantanea | null>(null)
   const [conexion, setConexion] = useState<Conexion>('conectando')
   const [nodoElegido, setNodoElegido] = useState<string | null>(leerNodoDeUrl)
+  const [avisos, setAvisos] = useState<Aviso[]>([])
+  const siguienteAviso = useRef(0)
 
   useEffect(() => {
     let fuente: EventSource | null = null
     let reintento: ReturnType<typeof setTimeout> | undefined
+    const borrados = new Set<ReturnType<typeof setTimeout>>()
 
     const abrir = () => {
       fuente = new EventSource(URL_EVENTOS)
       fuente.addEventListener('estado', (evento) => {
         setInstantanea(JSON.parse(evento.data) as Instantanea)
         setConexion('conectada')
+      })
+      // Webhook directo de EMQX: un cliente se conectó o se desconectó (software/servicio/src/webhooks.ts).
+      fuente.addEventListener('conexion', (evento) => {
+        const aviso: Aviso = { ...(JSON.parse(evento.data) as AvisoConexion), id: siguienteAviso.current++ }
+        setAvisos((actuales) => [...actuales, aviso])
+        const borrar = setTimeout(() => {
+          borrados.delete(borrar)
+          setAvisos((actuales) => actuales.filter((a) => a.id !== aviso.id))
+        }, DURACION_AVISO_MS)
+        borrados.add(borrar)
       })
       fuente.onerror = () => {
         setConexion('caida')
@@ -74,6 +94,7 @@ export function useBancal() {
     abrir()
     return () => {
       clearTimeout(reintento)
+      for (const borrar of borrados) clearTimeout(borrar)
       fuente?.close()
     }
   }, [])
@@ -115,6 +136,8 @@ export function useBancal() {
     nodoId,
     nodo: nodoId === null ? null : (nodos[nodoId] ?? null),
     elegirNodo,
+    /** Conexiones y desconexiones de los últimos segundos (cada una dura DURACION_AVISO_MS). */
+    avisos,
   }
 }
 

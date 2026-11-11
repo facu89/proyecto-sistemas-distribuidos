@@ -49,6 +49,13 @@ export function leerConfig() {
       host: texto('HTTP_HOST', '127.0.0.1'),
       webDist: ruta('WEB_DIST', '../../diseño_pagina_web/web/dist'),
     },
+    webhook: {
+      /**
+       * Secreto que EMQX manda en `Authorization: Bearer ...` al llamar a `/api/webhooks/...`.
+       * Vacío: los webhooks quedan desactivados (responden 503).
+       */
+      token: texto('WEBHOOK_TOKEN', ''),
+    },
     umbrales,
   }
 }

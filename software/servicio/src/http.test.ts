@@ -12,7 +12,8 @@ const bancales = crearBancales({
 })
 bancales.alMensaje('bancal1esp1/presencia', 'online')
 
-const config = { http: { puerto: 0, host: '127.0.0.1', webDist: '/no-existe' } } as Config
+const TOKEN = 'secreto-de-prueba'
+const config = { http: { puerto: 0, host: '127.0.0.1', webDist: '/no-existe' }, webhook: { token: TOKEN } } as Config
 let servidor: ReturnType<typeof crearServidorHttp>
 let base: string
 
@@ -72,5 +73,42 @@ describe('POST /api', () => {
   it('el estado incluye el modo', async () => {
     const estado = (await (await fetch(`${base}/api/estado`)).json()) as Instantanea
     assert.equal(estado.nodos.bancal1esp1.modo, 'manual')
+  })
+})
+
+describe('POST /api/webhooks/conexiones', () => {
+  const evento = { event: 'client.disconnected', clientid: 'bancal1esp1', username: 'bancal1esp1', reason: 'keepalive_timeout', timestamp: 1700000000000 }
+  const conToken = { Authorization: `Bearer ${TOKEN}` }
+
+  it('rechaza sin token o con uno equivocado', async () => {
+    assert.equal((await post('/api/webhooks/conexiones', evento)).status, 401)
+    assert.equal((await post('/api/webhooks/conexiones', evento, { Authorization: 'Bearer otro' })).status, 401)
+  })
+
+  it('rechaza lo que no es un evento de conexión', async () => {
+    assert.equal((await post('/api/webhooks/conexiones', { event: 'message.publish', clientid: 'x' }, conToken)).status, 400)
+    assert.equal((await post('/api/webhooks/conexiones', '{no es json', conToken)).status, 400)
+  })
+
+  it('reenvía el aviso a la web por SSE (evento conexion)', async () => {
+    const controlador = new AbortController()
+    const sse = await fetch(`${base}/api/eventos`, { signal: controlador.signal })
+    const lector = sse.body!.pipeThrough(new TextDecoderStream()).getReader()
+    // Esperar la instantánea inicial: recién ahí el servidor tiene anotada esta conexión SSE.
+    let recibido = ''
+    while (!recibido.includes('event: estado')) recibido += (await lector.read()).value
+
+    assert.equal((await post('/api/webhooks/conexiones', evento, conToken)).status, 204)
+    while (!recibido.includes('event: conexion')) recibido += (await lector.read()).value
+    controlador.abort()
+
+    const datos = /event: conexion\ndata: (.*)\n/.exec(recibido)![1]
+    assert.deepEqual(JSON.parse(datos), {
+      tipo: 'desconectado',
+      clientid: 'bancal1esp1',
+      usuario: 'bancal1esp1',
+      motivo: 'dejó de responder',
+      instante: 1700000000000,
+    })
   })
 })

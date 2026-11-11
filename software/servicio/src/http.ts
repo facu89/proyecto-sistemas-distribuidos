@@ -7,19 +7,26 @@
  *   y se reconecta solo si se corta.
  * - `POST /api/nodos/{nodoId}/modo` con `{"modo": "automatico" | "manual"}`.
  * - `POST /api/nodos/{nodoId}/actuadores/{tipo}` con `{"encendido": true | false}` (solo en manual).
+ * - `POST /api/webhooks/conexiones`: webhook directo de EMQX (ver webhooks.ts). Exige
+ *   `Authorization: Bearer {WEBHOOK_TOKEN}` y reenvía el aviso a la web como evento SSE `conexion`.
  * - Todo lo demás: los archivos del build de la web (`pnpm build` en diseño_pagina_web/web).
  *
  * Los POST manejan actuadores reales, así que solo se aceptan con `Content-Type: application/json` y
  * desde el mismo origen. Con eso, otra página abierta en el navegador no puede mandar órdenes: el
  * navegador no deja enviar JSON a otro origen sin permiso (CORS) y este servidor no lo da.
  */
+import { timingSafeEqual } from 'node:crypto'
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { esActuador, esModo, type Bancales, type Resultado } from './bancal.ts'
 import type { Config } from './config.ts'
+import { aAvisoConexion, type AvisoConexion } from './webhooks.ts'
 
 const MAX_CUERPO = 1024
+/** El evento de EMQX trae bastantes campos (propiedades de la conexión, etc.). */
+const MAX_CUERPO_WEBHOOK = 16 * 1024
+const RUTA_WEBHOOK_CONEXIONES = '/api/webhooks/conexiones'
 
 /** Un comentario SSE cada tanto mantiene viva la conexión a través de proxies que cortan las que están quietas. */
 const LATIDO_MS = 15_000
@@ -39,9 +46,25 @@ const TIPOS: Record<string, string> = {
   '.woff2': 'font/woff2',
 }
 
-export function crearServidorHttp({ http: config }: Config, bancales: Bancales, log: (mensaje: string) => void) {
+export function crearServidorHttp(
+  { http: config, webhook }: Config,
+  bancales: Bancales,
+  log: (mensaje: string) => void,
+) {
+  /** Las conexiones SSE abiertas, para mandarles los avisos de conexión del webhook. */
+  const clientesSse = new Set<http.ServerResponse>()
+  const avisarConexion = (aviso: AvisoConexion) => {
+    const mensaje = `event: conexion\ndata: ${JSON.stringify(aviso)}\n\n`
+    for (const cliente of clientesSse) cliente.write(mensaje)
+  }
+
   const servidor = http.createServer((pedido, respuesta) => {
     const url = new URL(pedido.url ?? '/', 'http://servicio')
+
+    if (pedido.method === 'POST' && url.pathname === RUTA_WEBHOOK_CONEXIONES) {
+      atenderWebhookConexiones(pedido, respuesta, webhook.token, avisarConexion, log)
+      return
+    }
 
     if (pedido.method === 'POST' && url.pathname.startsWith('/api/')) {
       atenderPost(pedido, respuesta, url.pathname, bancales, log)
@@ -71,10 +94,12 @@ export function crearServidorHttp({ http: config }: Config, bancales: Bancales, 
       respuesta.write('retry: 3000\n\n')
       enviar(bancales.instantanea())
       const dejarDeEscuchar = bancales.alCambiar(enviar)
+      clientesSse.add(respuesta)
       const latido = setInterval(() => respuesta.write(': latido\n\n'), LATIDO_MS)
       pedido.on('close', () => {
         clearInterval(latido)
         dejarDeEscuchar()
+        clientesSse.delete(respuesta)
       })
       return
     }
@@ -97,6 +122,7 @@ export function crearServidorHttp({ http: config }: Config, bancales: Bancales, 
     if (!fs.existsSync(path.join(config.webDist, 'index.html'))) {
       log(`Todavía no está el build de la web en ${config.webDist}: correr "pnpm build" en diseño_pagina_web/web`)
     }
+    if (!webhook.token) log(`Sin WEBHOOK_TOKEN: ${RUTA_WEBHOOK_CONEXIONES} queda desactivado`)
   })
 
   return {
@@ -108,6 +134,49 @@ export function crearServidorHttp({ http: config }: Config, bancales: Bancales, 
         servidor.closeAllConnections() // las conexiones SSE no se cierran solas
       }),
   }
+}
+
+/**
+ * Webhook directo de EMQX. No pasa por el chequeo de origen de los otros POST (EMQX no es un
+ * navegador): lo protege el token, que solo conocen EMQX y el servicio (secrets/.env).
+ */
+function atenderWebhookConexiones(
+  pedido: http.IncomingMessage,
+  respuesta: http.ServerResponse,
+  token: string,
+  avisar: (aviso: AvisoConexion) => void,
+  log: (mensaje: string) => void,
+) {
+  const responder = (codigo: number, error?: string) => {
+    if (!error) return void respuesta.writeHead(codigo).end()
+    respuesta.writeHead(codigo, { 'Content-Type': TIPOS['.json'] }).end(JSON.stringify({ error }))
+  }
+
+  if (!token) return responder(503, 'Webhooks desactivados: falta WEBHOOK_TOKEN')
+  if (!tokenValido(pedido.headers.authorization, token)) {
+    log(`POST ${RUTA_WEBHOOK_CONEXIONES} rechazado: token inválido o ausente`)
+    return responder(401, 'Token inválido')
+  }
+  if (!pedido.headers['content-type']?.toLowerCase().startsWith('application/json')) {
+    return responder(415, 'El cuerpo tiene que ser JSON (Content-Type: application/json)')
+  }
+
+  leerJson(pedido, MAX_CUERPO_WEBHOOK)
+    .then((cuerpo) => {
+      const aviso = aAvisoConexion(cuerpo)
+      if (!aviso) return responder(400, 'Se espera un evento client.connected o client.disconnected de EMQX')
+      log(`Webhook: ${aviso.clientid} ${aviso.tipo}${aviso.motivo ? ` (${aviso.motivo})` : ''}`)
+      avisar(aviso)
+      responder(204)
+    })
+    .catch((error: Error) => responder(400, error.message))
+}
+
+/** Compara `Authorization: Bearer ...` con el token en tiempo constante (no da pistas por la demora). */
+function tokenValido(encabezado: string | undefined, token: string): boolean {
+  const recibido = Buffer.from(encabezado ?? '')
+  const esperado = Buffer.from(`Bearer ${token}`)
+  return recibido.length === esperado.length && timingSafeEqual(recibido, esperado)
 }
 
 const RUTA_MODO = /^\/api\/nodos\/([^/]+)\/modo$/
@@ -171,13 +240,13 @@ function mismoOrigen(pedido: http.IncomingMessage): boolean {
   }
 }
 
-function leerJson(pedido: http.IncomingMessage): Promise<unknown> {
+function leerJson(pedido: http.IncomingMessage, maximo = MAX_CUERPO): Promise<unknown> {
   return new Promise((listo, fallo) => {
     const partes: Buffer[] = []
     let largo = 0
     pedido.on('data', (parte: Buffer) => {
       largo += parte.length
-      if (largo > MAX_CUERPO) {
+      if (largo > maximo) {
         fallo(new Error('Cuerpo demasiado grande'))
         pedido.destroy()
       } else partes.push(parte)

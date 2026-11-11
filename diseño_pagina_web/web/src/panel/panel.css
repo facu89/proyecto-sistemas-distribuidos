@@ -541,3 +541,73 @@ button.interruptor:disabled {
     transition: none;
   }
 }
+
+/* ---------- avisos de conexión (webhook directo de EMQX), arriba al centro ---------- */
+
+/* Arriba de todo, entre los botones de los paneles; por encima de los paneles abiertos */
+.avisos {
+  top: 16px;
+  left: 50%;
+  z-index: 11;
+  width: min(360px, calc(100% - 32px));
+  transform: translateX(-50%);
+  align-items: stretch;
+  gap: 8px;
+}
+
+.aviso {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--panel-borde);
+  border-radius: 14px;
+  background: var(--panel-fondo);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--panel-sombra);
+  /* Entra enseguida y se desvanece justo antes de los 5 s, cuando useBancal lo saca */
+  animation:
+    aviso-entrar 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2),
+    aviso-salir 0.3s ease 4.7s forwards;
+}
+
+.aviso-texto {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.aviso-detalle {
+  color: var(--panel-tenue);
+}
+
+@keyframes aviso-entrar {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+}
+
+@keyframes aviso-salir {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  /* En el celular los botones de los paneles ocupan el ancho de arriba: el aviso va debajo de ellos */
+  .avisos {
+    top: 72px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aviso {
+    animation: aviso-salir 0.3s ease 4.7s forwards;
+  }
+}
